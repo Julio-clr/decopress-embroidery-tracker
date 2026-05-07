@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DecoPress — Embroidery Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #185FA5; --navy-dark: #0f3d6e; --navy-light: #1e72c2;
+    --accent: #3BA3E0; --accent-light: #e8f4fd;
+    --bg: #F4F7FF; --white: #ffffff; --border: #dde4f0;
+    --text: #1a2540; --text-muted: #6b7a99;
+    --success: #16a34a; --success-light: #dcfce7;
+    --warning: #d97706; --warning-light: #fef3c7;
+    --danger: #dc2626; --danger-light: #fee2e2;
+    --radius: 10px; --shadow: 0 2px 8px rgba(24,95,165,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  .header {
+    background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy) 60%, var(--navy-light) 100%);
+    color: white; padding: 0 24px; display: flex; align-items: center;
+    justify-content: space-between; height: 64px;
+    box-shadow: 0 2px 12px rgba(15,61,110,0.3);
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .header-logo { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+  .header-logo span { color: var(--accent); }
+  .header-divider { width: 1px; height: 28px; background: rgba(255,255,255,0.25); }
+  .header-title { font-size: 14px; font-weight: 500; opacity: 0.9; }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .header-date { font-size: 13px; opacity: 0.7; font-family: 'DM Mono', monospace; }
+  .btn-refresh { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: background 0.15s; }
+  .btn-refresh:hover { background: rgba(255,255,255,0.25); }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px 20px 60px; }
+
+  /* TOGGLE */
+  .toggle-bar { display: flex; gap: 6px; margin-bottom: 20px; }
+  .tog { padding: 7px 18px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1.5px solid var(--border); background: var(--white); color: var(--text-muted); transition: all 0.15s; }
+  .tog.active { background: var(--navy); color: white; border-color: var(--navy); }
+  .tog:hover:not(.active) { border-color: var(--accent); color: var(--navy); }
+
+  /* METRIC CARDS */
+  .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .metric-card { background: var(--white); border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); padding: 16px 18px; }
+  .metric-lbl { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
+  .metric-val { font-family: 'DM Mono', monospace; font-size: 26px; font-weight: 600; color: var(--text); }
+  .metric-val.green { color: var(--success); }
+  .metric-val.blue { color: var(--navy); }
+  .metric-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+  /* SECTION */
+  .section-title { font-size: 13px; font-weight: 600; color: var(--navy); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .section-title::before { content: ''; display: block; width: 3px; height: 14px; background: var(--accent); border-radius: 2px; }
+
+  /* OPERATOR TABLE */
+  .table-card { background: var(--white); border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); overflow: hidden; margin-bottom: 20px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+  thead tr { background: #f0f5ff; }
+  th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1.5px solid var(--border); }
+  td { padding: 11px 14px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: #f8faff; }
+
+  .op-link { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--navy); font-weight: 600; text-decoration: none; }
+  .op-link:hover { color: var(--accent); }
+  .avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--accent-light); display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: var(--navy); flex-shrink: 0; }
+
+  .pill { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .pill-green { background: var(--success-light); color: var(--success); }
+  .pill-red { background: var(--danger-light); color: var(--danger); }
+  .pill-amber { background: var(--warning-light); color: var(--warning); }
+  .pill-blue { background: var(--accent-light); color: var(--navy); }
+  .pill-gray { background: #f1f5f9; color: var(--text-muted); }
+
+  /* TWO COL */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .panel { background: var(--white); border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); padding: 18px; }
+
+  .bar-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+  .bar-row:last-child { border-bottom: none; }
+  .bar-label { font-size: 12px; color: var(--text); min-width: 130px; }
+  .bar-wrap { flex: 1; height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; }
+  .bar-count { font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text-muted); min-width: 24px; text-align: right; }
+
+  .stat-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-lbl { color: var(--text-muted); }
+  .stat-val { font-family: 'DM Mono', monospace; font-weight: 600; color: var(--text); }
+  .stat-val.red { color: var(--danger); }
+
+  /* LOADING / EMPTY */
+  .loading { text-align: center; padding: 40px; color: var(--text-muted); font-size: 14px; }
+  .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--navy); border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty { text-align: center; padding: 32px; color: var(--text-muted); font-size: 13px; }
+
+  /* OPERATOR DETAIL VIEW */
+  #operatorView { display: none; }
+  .back-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; background: var(--white); border: 1.5px solid var(--border); border-radius: 7px; font-size: 13px; font-weight: 600; color: var(--navy); cursor: pointer; margin-bottom: 16px; transition: all 0.15s; }
+  .back-btn:hover { border-color: var(--accent); background: var(--accent-light); }
+
+  .op-header-card { background: var(--white); border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); padding: 16px 20px; margin-bottom: 16px; display: flex; align-items: center; gap: 14px; }
+  .op-avatar-lg { width: 44px; height: 44px; border-radius: 50%; background: var(--accent-light); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: var(--navy); flex-shrink: 0; }
+  .op-name { font-size: 18px; font-weight: 700; color: var(--text); }
+  .op-sub { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+
+  .op-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+
+  /* JOB LOG TABLE */
+  .job-log-table th:nth-child(1) { width: 10%; }
+  .job-log-table th:nth-child(2) { width: 16%; }
+  .job-log-table th:nth-child(3) { width: 10%; }
+  .job-log-table th:nth-child(4) { width: 8%; }
+  .job-log-table th:nth-child(5) { width: 10%; }
+  .job-log-table th:nth-child(6) { width: 9%; }
+  .job-log-table th:nth-child(7) { width: 10%; }
+  .job-log-table th:nth-child(8) { width: 12%; }
+  .job-log-table th:nth-child(9) { width: 15%; }
+
+  .toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; border-radius: 9px; font-size: 13px; font-weight: 600; color: white; box-shadow: 0 4px 16px rgba(0,0,0,0.15); z-index: 9999; transform: translateY(80px); opacity: 0; transition: all 0.3s ease; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { background: var(--success); }
+  .toast.error { background: var(--danger); }
+  .toast.info { background: var(--navy); }
+
+  @media (max-width: 900px) {
+    .metrics-grid, .op-metrics { grid-template-columns: 1fr 1fr; }
+    .two-col { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="header-logo">Deco<span>Press</span></div>
+    <div class="header-divider"></div>
+    <div class="header-title" id="headerTitle">Embroidery — Manager Dashboard</div>
+  </div>
+  <div class="header-right">
+    <div class="header-date" id="headerDate"></div>
+    <button class="btn-refresh" onclick="loadData()">↻ Refresh</button>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ═══ DASHBOARD VIEW ═══ -->
+  <div id="dashboardView">
+
+    <div class="toggle-bar" id="dToggleBar">
+      <div class="tog active" onclick="setRange('today', this)">Today</div>
+      <div class="tog" onclick="setRange('week', this)">This week</div>
+      <div class="tog" onclick="setRange('month', this)">This month</div>
+    </div>
+
+    <div class="metrics-grid" id="dMetrics">
+      <div class="metric-card"><div class="metric-lbl">Jobs completed</div><div class="metric-val blue" id="dJobs">—</div><div class="metric-sub" id="dJobsSub"></div></div>
+      <div class="metric-card"><div class="metric-lbl">Total pieces</div><div class="metric-val" id="dPcs">—</div><div class="metric-sub">pcs decorated</div></div>
+      <div class="metric-card"><div class="metric-lbl">Dept revenue</div><div class="metric-val green" id="dRevenue">—</div><div class="metric-sub" id="dRevSub"></div></div>
+      <div class="metric-card"><div class="metric-lbl">Avg pcs / hr</div><div class="metric-val" id="dPcsHr">—</div><div class="metric-sub">dept average</div></div>
+    </div>
+
+    <div class="section-title">Operator breakdown</div>
+    <div class="table-card">
+      <div id="opTableWrap"><div class="loading"><span class="spinner"></span>Loading data...</div></div>
+    </div>
+
+    <div class="two-col">
+      <div class="panel">
+        <div class="section-title">Machine utilization</div>
+        <div id="machinePanel"><div class="loading"><span class="spinner"></span></div></div>
+      </div>
+      <div class="panel">
+        <div class="section-title">Downtime reasons</div>
+        <div id="downtimePanel"><div class="loading"><span class="spinner"></span></div></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="panel">
+        <div class="section-title">Session insights</div>
+        <div id="sessionPanel"><div class="loading"><span class="spinner"></span></div></div>
+      </div>
+      <div class="panel">
+        <div class="section-title">Missed target summary</div>
+        <div id="missedPanel"><div class="loading"><span class="spinner"></span></div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══ OPERATOR DETAIL VIEW ═══ -->
+  <div id="operatorView">
+
+    <button class="back-btn" onclick="showDashboard()">← Back to department</button>
+
+    <div class="op-header-card">
+      <div class="op-avatar-lg" id="opAvatarLg"></div>
+      <div>
+        <div class="op-name" id="opNameTitle"></div>
+        <div class="op-sub" id="opSubTitle"></div>
+      </div>
+    </div>
+
+    <div class="toggle-bar" id="opToggleBar">
+      <div class="tog active" onclick="setOpRange('today', this)">Today</div>
+      <div class="tog" onclick="setOpRange('yesterday', this)">Yesterday</div>
+      <div class="tog" onclick="setOpRange('week', this)">This week</div>
+      <div class="tog" onclick="setOpRange('month', this)">This month</div>
+    </div>
+
+    <div class="op-metrics">
+      <div class="metric-card"><div class="metric-lbl">Jobs</div><div class="metric-val blue" id="opJobs">—</div></div>
+      <div class="metric-card"><div class="metric-lbl">Total pieces</div><div class="metric-val" id="opPcs">—</div></div>
+      <div class="metric-card"><div class="metric-lbl">Revenue</div><div class="metric-val green" id="opRevenue">—</div></div>
+      <div class="metric-card"><div class="metric-lbl">Avg pcs / hr</div><div class="metric-val" id="opPcsHr">—</div></div>
+    </div>
+
+    <div class="section-title">Job log</div>
+    <div class="table-card">
+      <div id="opJobLogWrap"><div class="loading"><span class="spinner"></span>Loading...</div></div>
+    </div>
+
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  let currentRange = 'today';
+  let currentOpRange = 'today';
+  let currentOperator = '';
+  let allData = [];
+
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyCTGkCzwsQTGBfXonaa1zyS3nfXJ8PU-3gzGePFJ0ArCBAQd4koiLrkCTJW4S9tPOUHQ/exec';
+
+  const OPERATORS = ['Shay Chavez','Karla Betancourt','Elvia De la Rosa','Jocelyn Garcia','Fabiana Proana'];
+
+  // ─── INIT ─────────────────────────────────────────────────────
+  function init() {
+    const now = new Date();
+    document.getElementById('headerDate').textContent =
+      now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    loadData();
+  }
+
+  // ─── LOAD DATA FROM SHEET ─────────────────────────────────────
+  function loadData() {
+    fetch(APPS_SCRIPT_URL + '?type=production&range=all')
+    .then(r => r.json())
+    .then(onDataLoaded)
+    .catch(err => showToast('Load failed: ' + err.message, 'error'));
+  }
+
+  function onDataLoaded(result) {
+    if (!result.success) { showToast('Error: ' + result.error, 'error'); return; }
+    allData = result.data || [];
+    renderDashboard();
+  }
+
+  // ─── DATE RANGE FILTER ────────────────────────────────────────
+  function getDateRange(range) {
+    const now = new Date();
+    const today = toDateStr(now);
+    if (range === 'today') return [today, today];
+    if (range === 'yesterday') {
+      const y = new Date(now); y.setDate(y.getDate() - 1);
+      const ys = toDateStr(y); return [ys, ys];
+    }
+    if (range === 'week') {
+      const start = new Date(now); start.setDate(now.getDate() - now.getDay());
+      return [toDateStr(start), today];
+    }
+    if (range === 'month') {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      return [toDateStr(start), today];
+    }
+    return [today, today];
+  }
+
+  function toDateStr(d) {
+    return (d.getMonth()+1).toString().padStart(2,'0') + '/' +
+           d.getDate().toString().padStart(2,'0') + '/' + d.getFullYear();
+  }
+
+  function filterByRange(rows, range, opFilter) {
+    const [start, end] = getDateRange(range);
+    return rows.filter(r => {
+      const d = String(r['Date'] || r['Date'] || '').substring(0,10);
+      const inRange = d >= start && d <= end;
+      const inOp = opFilter ? (r['Operator'] || r['Operator']) === opFilter : true;
+      return inRange && inOp;
+    });
+  }
+
+  // ─── RANGE TOGGLES ────────────────────────────────────────────
+  function setRange(range, el) {
+    currentRange = range;
+    document.querySelectorAll('#dToggleBar .tog').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    renderDashboard();
+  }
+
+  function setOpRange(range, el) {
+    currentOpRange = range;
+    document.querySelectorAll('#opToggleBar .tog').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    renderOperator(currentOperator);
+  }
+
+  // ─── RENDER DASHBOARD ─────────────────────────────────────────
+  function renderDashboard() {
+    const rows = filterByRange(allData, currentRange, null);
+
+    // Summary metrics
+    const totalJobs = rows.length;
+    const totalPcs = rows.reduce((s, r) => s + (parseFloat(r['Total Qty']) || 0), 0);
+    const totalRev = rows.reduce((s, r) => s + (parseFloat(r['$ Total']) || 0), 0);
+    const pcsHrVals = rows.map(r => parseFloat(r['Pcs / hr'])).filter(v => v > 0);
+    const avgPcsHr = pcsHrVals.length ? (pcsHrVals.reduce((a,b) => a+b, 0) / pcsHrVals.length).toFixed(1) : '—';
+
+    document.getElementById('dJobs').textContent = totalJobs;
+    document.getElementById('dJobsSub').textContent = countActiveOperators(rows) + ' operators active';
+    document.getElementById('dPcs').textContent = totalPcs.toLocaleString();
+    document.getElementById('dRevenue').textContent = '$' + totalRev.toFixed(2);
+    document.getElementById('dPcsHr').textContent = avgPcsHr;
+
+    renderOpTable(rows);
+    renderMachinePanel(rows);
+    renderDowntimePanel(rows);
+    renderSessionPanel(rows);
+    renderMissedPanel(rows);
+  }
+
+  function countActiveOperators(rows) {
+    return new Set(rows.map(r => r['Operator'])).size;
+  }
+
+  // ─── OPERATOR TABLE ───────────────────────────────────────────
+  function renderOpTable(rows) {
+    if (rows.length === 0) {
+      document.getElementById('opTableWrap').innerHTML = '<div class="empty">No data for this period.</div>';
+      return;
+    }
+
+    const ops = {};
+    rows.forEach(r => {
+      const op = r['Operator'];
+      if (!ops[op]) ops[op] = { jobs: 0, qty: 0, rev: 0, pcsHrVals: [], co: 0, missed: 0, missedReasons: [] };
+      ops[op].jobs++;
+      ops[op].qty += parseFloat(r['Total Qty']) || 0;
+      ops[op].rev += parseFloat(r['$ Total']) || 0;
+      const ph = parseFloat(r['Pcs / hr']); if (ph > 0) ops[op].pcsHrVals.push(ph);
+      ops[op].co += parseFloat(r['Changeover (min)']) || 0;
+      if (r['Missed Target'] === 'Yes') { ops[op].missed++; if (r['Downtime Reason']) ops[op].missedReasons.push(r['Downtime Reason']); }
+    });
+
+    let html = `<table><thead><tr>
+      <th style="width:22%">Operator</th><th style="width:9%">Jobs</th>
+      <th style="width:10%">Qty</th><th style="width:13%">Revenue</th>
+      <th style="width:11%">Pcs / hr</th><th style="width:13%">Changeover</th>
+      <th style="width:22%">Missed target</th>
+    </tr></thead><tbody>`;
+
+    Object.entries(ops).sort((a,b) => b[1].rev - a[1].rev).forEach(([op, d]) => {
+      const avg = d.pcsHrVals.length ? (d.pcsHrVals.reduce((a,b)=>a+b,0)/d.pcsHrVals.length).toFixed(1) : '—';
+      const pcsClass = avg !== '—' ? (parseFloat(avg) >= 14 ? 'pill-green' : parseFloat(avg) >= 10 ? 'pill-blue' : 'pill-amber') : 'pill-gray';
+      const topReason = d.missedReasons.length ? d.missedReasons[0] : '';
+      const missedHtml = d.missed > 0
+        ? `<span class="pill pill-red">${d.missed} — ${topReason}</span>`
+        : `<span class="pill pill-green">0</span>`;
+      const initials = op.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+
+      html += `<tr>
+        <td><span class="op-link" onclick="showOperator('${op}')">
+          <span class="avatar">${initials}</span>${op}
+        </span></td>
+        <td>${d.jobs}</td>
+        <td>${d.qty.toLocaleString()}</td>
+        <td>$${d.rev.toFixed(2)}</td>
+        <td><span class="pill ${pcsClass}">${avg}</span></td>
+        <td>${d.co > 0 ? d.co + ' min' : '—'}</td>
+        <td>${missedHtml}</td>
+      </tr>`;
+    });
+
+    html += '</tbody></table>';
+    document.getElementById('opTableWrap').innerHTML = html;
+  }
+
+  // ─── MACHINE PANEL ────────────────────────────────────────────
+  function renderMachinePanel(rows) {
+    const machines = {};
+    rows.forEach(r => {
+      const m = r['Machine']; if (!m) return;
+      if (!machines[m]) machines[m] = { jobs: 0, qty: 0, rev: 0 };
+      machines[m].jobs++;
+      machines[m].qty += parseFloat(r['Total Qty']) || 0;
+      machines[m].rev += parseFloat(r['$ Total']) || 0;
+    });
+
+    if (Object.keys(machines).length === 0) {
+      document.getElementById('machinePanel').innerHTML = '<div class="empty">No data.</div>'; return;
+    }
+
+    let html = '';
+    Object.entries(machines).sort((a,b) => b[1].rev - a[1].rev).forEach(([m, d]) => {
+      html += `<div class="bar-row">
+        <div style="flex:1;">
+          <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:2px;">${m}</div>
+          <div style="font-size:11px;color:var(--text-muted);">${d.jobs} jobs · ${d.qty} pcs · <span style="color:var(--success);font-weight:600;">$${d.rev.toFixed(2)}</span></div>
+        </div>
+      </div>`;
+    });
+    document.getElementById('machinePanel').innerHTML = html;
+  }
+
+  // ─── DOWNTIME PANEL ───────────────────────────────────────────
+  function renderDowntimePanel(rows) {
+    const reasons = {};
+    rows.forEach(r => { if (r['Missed Target'] === 'Yes' && r['Downtime Reason']) { reasons[r['Downtime Reason']] = (reasons[r['Downtime Reason']] || 0) + 1; } });
+
+    if (Object.keys(reasons).length === 0) {
+      document.getElementById('downtimePanel').innerHTML = '<div class="empty">No missed targets this period.</div>'; return;
+    }
+
+    const max = Math.max(...Object.values(reasons));
+    const colors = ['#185FA5','#3BA3E0','#d97706','#dc2626','#9ca3af'];
+    let html = '';
+    Object.entries(reasons).sort((a,b) => b[1]-a[1]).forEach(([r, c], i) => {
+      const pct = Math.round((c / max) * 100);
+      html += `<div class="bar-row">
+        <div class="bar-label">${r}</div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:${pct}%;background:${colors[i]||'#9ca3af'};"></div></div>
+        <div class="bar-count">${c}</div>
+      </div>`;
+    });
+    document.getElementById('downtimePanel').innerHTML = html;
+  }
+
+  // ─── SESSION PANEL ────────────────────────────────────────────
+  function renderSessionPanel(rows) {
+    let totalSessions = 0, multiSession = 0, totalCo = 0, coJobs = 0;
+    rows.forEach(r => {
+      let sess = 0;
+      if (r['S1 Start']) sess++; if (r['S2 Start']) sess++; if (r['S3 Start']) sess++;
+      totalSessions += sess || 1;
+      if (sess > 1) multiSession++;
+      const co = parseFloat(r['Changeover (min)']) || 0;
+      totalCo += co; if (co > 0) coJobs++;
+    });
+    const avgSess = rows.length ? (totalSessions / rows.length).toFixed(1) : '—';
+
+    document.getElementById('sessionPanel').innerHTML = `
+      <div class="stat-row"><span class="stat-lbl">Avg sessions per job</span><span class="stat-val">${avgSess}</span></div>
+      <div class="stat-row"><span class="stat-lbl">Jobs with 2+ sessions</span><span class="stat-val">${multiSession}</span></div>
+      <div class="stat-row"><span class="stat-lbl">Total changeover time</span><span class="stat-val">${totalCo} min</span></div>
+      <div class="stat-row"><span class="stat-lbl">Jobs with changeovers</span><span class="stat-val">${coJobs} of ${rows.length}</span></div>
+    `;
+  }
+
+  // ─── MISSED PANEL ─────────────────────────────────────────────
+  function renderMissedPanel(rows) {
+    const missed = rows.filter(r => r['Missed Target'] === 'Yes');
+    const rate = rows.length ? ((missed.length / rows.length) * 100).toFixed(1) : '0';
+    const reasons = {};
+    missed.forEach(r => { if (r['Downtime Reason']) reasons[r['Downtime Reason']] = (reasons[r['Downtime Reason']] || 0) + 1; });
+    const topReason = Object.entries(reasons).sort((a,b) => b[1]-a[1])[0];
+    const affectedOps = new Set(missed.map(r => r['Operator'])).size;
+
+    document.getElementById('missedPanel').innerHTML = `
+      <div class="stat-row"><span class="stat-lbl">Total missed</span><span class="stat-val red">${missed.length} of ${rows.length}</span></div>
+      <div class="stat-row"><span class="stat-lbl">Miss rate</span><span class="stat-val red">${rate}%</span></div>
+      <div class="stat-row"><span class="stat-lbl">Top reason</span><span class="stat-val">${topReason ? topReason[0] : '—'}</span></div>
+      <div class="stat-row"><span class="stat-lbl">Operators affected</span><span class="stat-val">${affectedOps}</span></div>
+    `;
+  }
+
+  // ─── OPERATOR DETAIL ──────────────────────────────────────────
+  function showOperator(op) {
+    currentOperator = op;
+    currentOpRange = 'today';
+    document.querySelectorAll('#opToggleBar .tog').forEach((t,i) => t.classList.toggle('active', i === 0));
+
+    const initials = op.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+    document.getElementById('opAvatarLg').textContent = initials;
+    document.getElementById('opNameTitle').textContent = op;
+
+    document.getElementById('dashboardView').style.display = 'none';
+    document.getElementById('operatorView').style.display = 'block';
+    document.getElementById('headerTitle').textContent = 'Embroidery — ' + op;
+
+    renderOperator(op);
+  }
+
+  function showDashboard() {
+    document.getElementById('operatorView').style.display = 'none';
+    document.getElementById('dashboardView').style.display = 'block';
+    document.getElementById('headerTitle').textContent = 'Embroidery — Manager Dashboard';
+  }
+
+  function renderOperator(op) {
+    const rows = filterByRange(allData, currentOpRange, op);
+    const rangeLabel = { today: 'Today', yesterday: 'Yesterday', week: 'This week', month: 'This month' }[currentOpRange];
+    document.getElementById('opSubTitle').textContent = rangeLabel + ' · ' + rows.length + ' job(s)';
+
+    const totalPcs = rows.reduce((s, r) => s + (parseFloat(r['Total Qty']) || 0), 0);
+    const totalRev = rows.reduce((s, r) => s + (parseFloat(r['$ Total']) || 0), 0);
+    const pcsHrVals = rows.map(r => parseFloat(r['Pcs / hr'])).filter(v => v > 0);
+    const avgPcsHr = pcsHrVals.length ? (pcsHrVals.reduce((a,b)=>a+b,0)/pcsHrVals.length).toFixed(1) : '—';
+
+    document.getElementById('opJobs').textContent = rows.length;
+    document.getElementById('opPcs').textContent = totalPcs.toLocaleString();
+    document.getElementById('opRevenue').textContent = '$' + totalRev.toFixed(2);
+    document.getElementById('opPcsHr').textContent = avgPcsHr;
+
+    renderJobLog(rows);
+  }
+
+  function renderJobLog(rows) {
+    if (rows.length === 0) {
+      document.getElementById('opJobLogWrap').innerHTML = '<div class="empty">No jobs logged for this period.</div>'; return;
+    }
+
+    let html = `<table class="job-log-table"><thead><tr>
+      <th>Date</th><th>Job # / Name</th><th>Sessions</th>
+      <th>Qty</th><th>Revenue</th><th>Pcs/hr</th>
+      <th>Changeover</th><th>Missed</th><th>Notes</th>
+    </tr></thead><tbody>`;
+
+    rows.forEach(r => {
+      const jobNum = r['Job Number'] || '—';
+      const jobName = r['Job Name'] || '';
+      let sessCount = 0;
+      if (r['S1 Start']) sessCount++; if (r['S2 Start']) sessCount++; if (r['S3 Start']) sessCount++;
+      const qty = parseFloat(r['Total Qty']) || 0;
+      const rev = parseFloat(r['$ Total']) || 0;
+      const pcsHr = r['Pcs / hr'] || '—';
+      const co = parseFloat(r['Changeover (min)']) || 0;
+      const missed = r['Missed Target'] === 'Yes';
+      const reason = r['Downtime Reason'] || '';
+      const notes = r['Notes'] || '—';
+
+      const missedHtml = missed
+        ? `<span class="pill pill-red">${reason || 'Yes'}</span>`
+        : `<span class="pill pill-green">No</span>`;
+
+      html += `<tr>
+        <td style="font-family:'DM Mono',monospace;font-size:11px;">${r['Date']}</td>
+        <td><div style="font-weight:600;">${jobNum}</div><div style="font-size:11px;color:var(--text-muted);">${jobName}</div></td>
+        <td style="text-align:center;">${sessCount || 1}</td>
+        <td style="font-family:'DM Mono',monospace;">${qty}</td>
+        <td style="font-family:'DM Mono',monospace;color:var(--success);font-weight:600;">$${rev.toFixed(2)}</td>
+        <td><span class="pill ${pcsHr !== '—' && parseFloat(pcsHr) >= 12 ? 'pill-blue' : 'pill-amber'}">${pcsHr}</span></td>
+        <td style="font-size:12px;">${co > 0 ? co + ' min' : '—'}</td>
+        <td>${missedHtml}</td>
+        <td style="font-size:11px;color:var(--text-muted);">${notes}</td>
+      </tr>`;
+    });
+
+    html += '</tbody></table>';
+    document.getElementById('opJobLogWrap').innerHTML = html;
+  }
+
+  // ─── TOAST ────────────────────────────────────────────────────
+  function showToast(msg, type = 'info') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show ' + type;
+    setTimeout(() => t.className = 'toast', 4000);
+  }
+
+  init();
+</script>
+</body>
+</html>
