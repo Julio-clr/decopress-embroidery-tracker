@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Embroidery Production Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:    #1a2e4a;
+  --navy2:   #15263e;
+  --blue:    #1e4d8c;
+  --accent:  #2563eb;
+  --accent2: #1d4ed8;
+  --bg:      #eef1f5;
+  --card:    #ffffff;
+  --border:  #dde3ec;
+  --text:    #0f172a;
+  --muted:   #64748b;
+  --light:   #f8fafc;
+  --green:   #16a34a;
+  --red:     #dc2626;
+  --amber:   #d97706;
+  --lead:    #2563eb;
+  --lead-bg: #eff6ff;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+}
+
+/* ── HEADER ── */
+.header {
+  background: var(--navy);
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 44px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.dp-badge {
+  width: 28px; height: 28px;
+  background: var(--accent);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: #fff; letter-spacing: 0.5px;
+}
+.header-title {
+  font-size: 14px; font-weight: 600; color: #fff; letter-spacing: 0.1px;
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.header-field {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.header-field label {
+  font-size: 11px;
+  color: rgba(255,255,255,0.55);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.header-select {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #fff;
+  border-radius: 5px;
+  padding: 5px 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+  min-width: 150px;
+  transition: border-color 0.15s;
+}
+.header-select:focus { border-color: var(--accent); }
+.header-select option { background: #1a2e4a; color: #fff; }
+.header-date {
+  font-size: 12px;
+  color: rgba(255,255,255,0.6);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* LEAD BANNER */
+.lead-banner {
+  display: none;
+  background: var(--accent2);
+  padding: 5px 24px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: rgba(255,255,255,0.9);
+  align-items: center;
+  gap: 6px;
+}
+.lead-banner.visible { display: flex; }
+
+/* MAIN */
+.main { max-width: 780px; margin: 0 auto; padding: 20px 16px 60px; }
+
+/* SUMMARY CARDS */
+.summary-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.sum-card {
+  background: var(--card);
+  border-radius: 8px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+  border: 1px solid var(--border);
+}
+.sum-card.highlight {
+  background: var(--navy);
+  border-color: var(--navy);
+}
+.sum-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.sum-card.highlight .sum-label { color: rgba(255,255,255,0.55); }
+.sum-val {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1;
+}
+.sum-card.highlight .sum-val { color: #fff; }
+.sum-sub {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.sum-card.highlight .sum-sub { color: rgba(255,255,255,0.5); }
+.target-line {
+  font-size: 10px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+.target-line.hit  { color: var(--green); }
+.target-line.miss { color: var(--red); }
+.target-line.none { color: transparent; }
+
+/* SECTION CARD */
+.section {
+  background: var(--card);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+  border: 1px solid var(--border);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px 0;
+  margin-bottom: 12px;
+}
+.section-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+.section-dot.lead { background: var(--accent); }
+.section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text);
+}
+.section-body { padding: 0 16px 16px; }
+
+/* FORM */
+.row { display: grid; gap: 10px; margin-bottom: 10px; }
+.row.c2 { grid-template-columns: 1fr 1fr; }
+.row.c3 { grid-template-columns: 1fr 1fr 1fr; }
+.fg { display: flex; flex-direction: column; gap: 3px; }
+.fg label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.fg label .req { color: var(--red); }
+
+input[type=text],
+input[type=number],
+select,
+textarea {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 7px 10px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  background: #fff;
+  outline: none;
+  width: 100%;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+}
+input.err, select.err {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px rgba(220,38,38,0.08);
+}
+textarea { resize: vertical; min-height: 50px; }
+
+/* TIME ROW */
+.time-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 5px; }
+
+/* REVENUE STRIP */
+.rev-strip {
+  background: var(--navy);
+  border-radius: 6px;
+  padding: 9px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.rs-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: rgba(255,255,255,0.45); }
+.rs-val   { font-size: 18px; font-weight: 700; color: #fff; }
+
+/* DIVIDER */
+.divider { height: 1px; background: var(--border); margin: 12px 0; }
+
+/* ACTION TOGGLE — LEAD */
+.action-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.act-btn {
+  border: 1px solid var(--border);
+  background: var(--light);
+  border-radius: 6px;
+  padding: 9px 6px 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.12s;
+  user-select: none;
+}
+.act-btn .act-icon  { font-size: 16px; display: block; margin-bottom: 3px; }
+.act-btn .act-label { font-size: 10px; font-weight: 600; letter-spacing: 0.4px; color: var(--muted); text-transform: uppercase; }
+.act-btn:hover        { border-color: var(--accent); background: #eff6ff; }
+.act-btn.active       { border-color: var(--accent); background: #eff6ff; }
+.act-btn.active .act-label { color: var(--accent); }
+
+/* COLOR ROWS */
+.color-hdr {
+  display: grid;
+  grid-template-columns: 26px 1fr 105px;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.color-hdr span {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.5px; color: var(--muted);
+}
+.color-row {
+  display: grid;
+  grid-template-columns: 26px 1fr 105px;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+.color-row:last-child { border-bottom: none; }
+.color-num {
+  font-size: 11px; font-weight: 600; color: var(--muted);
+  text-align: center; font-variant-numeric: tabular-nums;
+}
+
+/* JOB TABLE */
+.job-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.job-table th {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--muted);
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  background: var(--light);
+}
+.job-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.job-table tr:last-child td { border-bottom: none; }
+.job-table tr:hover td { background: #f8fafc; }
+.job-num  { font-weight: 600; color: var(--accent); font-size: 12px; white-space: nowrap; }
+.job-name { font-weight: 500; }
+.job-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.rev-val  { font-weight: 700; color: var(--green); white-space: nowrap; }
+
+.chip {
+  display: inline-block;
+  font-size: 10px; font-weight: 600; padding: 1px 6px;
+  border-radius: 10px; text-transform: uppercase; letter-spacing: 0.3px;
+}
+.chip-prod   { background: #eff6ff; color: var(--accent); }
+.chip-sample { background: #f0fdf4; color: var(--green); }
+.chip-co     { background: #fef3c7; color: var(--amber); }
+.chip-edit   { background: #eff6ff; color: var(--blue); }
+
+/* BUTTONS */
+.btn-add {
+  width: 100%;
+  border: 1.5px dashed var(--accent);
+  background: none;
+  color: var(--accent);
+  border-radius: 6px;
+  padding: 9px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s;
+  margin-top: 4px;
+}
+.btn-add:hover { background: #eff6ff; }
+
+.btn-save {
+  width: 100%;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 12px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s;
+  margin-top: 2px;
+}
+.btn-save:hover:not(:disabled) { background: var(--accent2); }
+.btn-save:disabled { background: var(--muted); cursor: not-allowed; }
+
+.btn-sm {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 5px;
+  padding: 5px 12px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s;
+}
+.btn-sm:hover { border-color: var(--accent); color: var(--accent); }
+.btn-sm.danger:hover { border-color: var(--red); color: var(--red); }
+
+.del-btn {
+  background: none; border: none; color: var(--muted);
+  cursor: pointer; font-size: 13px; padding: 2px 5px;
+  border-radius: 3px; line-height: 1;
+  transition: color 0.12s, background 0.12s;
+}
+.del-btn:hover { color: var(--red); background: #fee2e2; }
+
+/* ALERT */
+.alert { border-radius: 6px; padding: 9px 13px; font-size: 13px; font-weight: 500; margin-bottom: 12px; display: none; }
+.alert.show { display: block; }
+.alert.ok  { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+.alert.bad { background: #fee2e2; color: var(--red); border: 1px solid #fca5a5; }
+
+.empty { text-align: center; color: var(--muted); padding: 24px; font-size: 13px; }
+
+/* MODAL */
+.overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; align-items: center; justify-content: center; }
+.overlay.open { display: flex; }
+.modal-box { background: #fff; border-radius: 10px; padding: 24px; width: 90%; max-width: 400px; box-shadow: 0 16px 48px rgba(0,0,0,0.2); }
+.modal-box h3 { font-size: 15px; font-weight: 700; margin-bottom: 5px; }
+.modal-box p  { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+.modal-btns { display: flex; gap: 8px; margin-top: 12px; }
+
+.page-footer { text-align: center; padding: 10px; font-size: 11px; color: var(--muted); }
+.page-footer a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<div class="header">
+  <div class="header-left">
+    <div class="dp-badge">DP</div>
+    <span class="header-title">Embroidery Production Tracker</span>
+  </div>
+  <div class="header-right">
+    <div class="header-field">
+      <label>Operator:</label>
+      <select class="header-select" id="hOperator" onchange="onOperatorChange()">
+        <option value="">— Select Operator —</option>
+        <option value="Shay Chavez">Shay Chavez</option>
+        <option value="Karla Betancourt">Karla Betancourt</option>
+        <option value="Elvia De la Rosa">Elvia De la Rosa</option>
+        <option value="Jocelyn Garcia">Jocelyn Garcia</option>
+        <option value="Fabiana Proana">Fabiana Proana</option>
+      </select>
+    </div>
+    <div class="header-field">
+      <label>Machine:</label>
+      <select class="header-select" id="hMachine" onchange="updateSummary()">
+        <option value="">— Select Machine —</option>
+        <option value="8-Head">8-Head</option>
+        <option value="6-Head A">6-Head A</option>
+        <option value="6-Head B">6-Head B</option>
+        <option value="Single-Head 1">Single-Head 1</option>
+        <option value="Single-Head 2">Single-Head 2</option>
+        <option value="Single-Head 3">Single-Head 3</option>
+      </select>
+    </div>
+    <div class="header-date" id="hDate">—</div>
+  </div>
+</div>
+
+<!-- LEAD BANNER -->
+<div class="lead-banner" id="leadBanner">● Lead Mode — Shay Chavez</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <div id="alertBox" class="alert"></div>
+
+  <!-- SUMMARY CARDS -->
+  <div class="summary-row">
+    <div class="sum-card highlight">
+      <div class="sum-label">Jobs Added</div>
+      <div class="sum-val" id="sJobs">0</div>
+    </div>
+    <div class="sum-card highlight">
+      <div class="sum-label">Total Pieces</div>
+      <div class="sum-val" id="sPcs">0</div>
+    </div>
+    <div class="sum-card highlight">
+      <div class="sum-label">Total Revenue</div>
+      <div class="sum-val" id="sRev">$0.00</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">Pcs / Hr</div>
+      <div class="sum-val" id="sPcsHr" style="color:var(--text);">—</div>
+      <div class="target-line none" id="sTarget"></div>
+    </div>
+  </div>
+
+  <!-- ── JOB ENTRY ── -->
+  <div class="section">
+    <div class="section-head">
+      <div class="section-dot" id="entryDot"></div>
+      <div class="section-title" id="entryTitle">Quick Job Entry</div>
+    </div>
+    <div class="section-body">
+
+      <!-- Job # + Name — always -->
+      <div class="row c2">
+        <div class="fg">
+          <label>Job Number <span class="req">*</span></label>
+          <input type="text" id="fJobNum" placeholder="e.g. 10045" />
+        </div>
+        <div class="fg">
+          <label>Job Name <span class="req">*</span></label>
+          <input type="text" id="fJobName" placeholder="e.g. Acme Corp Logo" />
+        </div>
+      </div>
+
+      <!-- ══ LEAD SECTION ══ -->
+      <div id="leadSection" style="display:none;">
+        <div class="fg" style="margin-bottom:8px;">
+          <label>Action Type <span class="req">*</span></label>
+        </div>
+        <div class="action-row">
+          <div class="act-btn" id="ab-sample" onclick="setAction('sample')">
+            <span class="act-icon">🧵</span>
+            <span class="act-label">Sample</span>
+          </div>
+          <div class="act-btn" id="ab-co" onclick="setAction('co')">
+            <span class="act-icon">🔄</span>
+            <span class="act-label">CO Assist</span>
+          </div>
+          <div class="act-btn" id="ab-edit" onclick="setAction('edit')">
+            <span class="act-icon">✏️</span>
+            <span class="act-label">File Edit</span>
+          </div>
+          <div class="act-btn" id="ab-gprod" onclick="setAction('gprod')">
+            <span class="act-icon">⚡</span>
+            <span class="act-label">Production</span>
+          </div>
+        </div>
+
+        <!-- SAMPLE -->
+        <div id="panel-sample" style="display:none;">
+          <div class="row c2">
+            <div class="fg">
+              <label>Sample Type <span class="req">*</span></label>
+              <select id="fSampleType">
+                <option value="">— Select —</option>
+                <option value="Physical">Physical</option>
+                <option value="Digital">Digital</option>
+              </select>
+            </div>
+            <div class="fg">
+              <label>Intended Order Qty <span class="req">*</span></label>
+              <input type="number" id="fIntendedQty" placeholder="Pcs if order approved" min="1" />
+            </div>
+          </div>
+          <div class="fg" style="margin-bottom:8px;">
+            <label>Number of Thread Colors <span class="req">*</span></label>
+            <select id="fNumColors" onchange="renderColorRows()">
+              <option value="">— Select —</option>
+              <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+              <option>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
+            </select>
+          </div>
+          <div id="colorContainer" style="margin-bottom:10px;"></div>
+        </div>
+
+        <!-- CO ASSIST -->
+        <div id="panel-co" style="display:none;">
+          <div class="row c2">
+            <div class="fg">
+              <label>Operator Assisted <span class="req">*</span></label>
+              <select id="fCoOp">
+                <option value="">— Select —</option>
+                <option>Karla Betancourt</option>
+                <option>Elvia De la Rosa</option>
+                <option>Jocelyn Garcia</option>
+                <option>Fabiana Proana</option>
+              </select>
+            </div>
+            <div class="fg">
+              <label>Duration <span class="req">*</span></label>
+              <select id="fCoDur">
+                <option value="">— Select —</option>
+                <option value="10">10 min</option>
+                <option value="15">15 min</option>
+                <option value="20">20 min</option>
+                <option value="25">25 min</option>
+                <option value="30">30 min</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- FILE EDIT -->
+        <div id="panel-edit" style="display:none;">
+          <div class="row c2">
+            <div class="fg">
+              <label>Codewolf Asset Code <span class="req">*</span></label>
+              <input type="text" id="fAssetCode" placeholder="e.g. CW-00123" />
+            </div>
+            <div class="fg">
+              <label>Duration (min) <span class="req">*</span></label>
+              <input type="number" id="fEditDur" placeholder="Minutes" min="1" />
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <!-- END LEAD SECTION -->
+
+      <!-- ══ PRODUCTION FIELDS ══ -->
+      <div id="regularFields">
+
+        <div class="row c2">
+          <div class="fg">
+            <label>Unit Qty <span class="req">*</span></label>
+            <input type="number" id="fQty" placeholder="Pcs completed" min="1" oninput="calcRevenue()" />
+          </div>
+          <div class="fg">
+            <label>Unit $ <span class="req">*</span></label>
+            <input type="number" id="fUnitPrice" placeholder="0.00" min="0" step="0.01" oninput="calcRevenue()" />
+          </div>
+        </div>
+
+        <div class="rev-strip">
+          <div>
+            <div class="rs-label">Revenue</div>
+            <div class="rs-val" id="revDisplay">$0.00</div>
+          </div>
+        </div>
+
+        <div class="row c2">
+          <div class="fg">
+            <label>Start Time <span class="req">*</span></label>
+            <div class="time-row">
+              <select id="fSH">
+                <option value="">Hr</option>
+                <option>1</option><option>2</option><option>3</option><option>4</option>
+                <option>5</option><option>6</option><option>7</option><option>8</option>
+                <option>9</option><option>10</option><option>11</option><option>12</option>
+              </select>
+              <select id="fSM">
+                <option value="">Min</option>
+                <option value="00">00</option><option value="05">05</option><option value="10">10</option>
+                <option value="15">15</option><option value="20">20</option><option value="25">25</option>
+                <option value="30">30</option><option value="35">35</option><option value="40">40</option>
+                <option value="45">45</option><option value="50">50</option><option value="55">55</option>
+              </select>
+              <select id="fSAP"><option value="AM">AM</option><option value="PM">PM</option></select>
+            </div>
+          </div>
+          <div class="fg">
+            <label>Stop Time <span class="req">*</span></label>
+            <div class="time-row">
+              <select id="fEH">
+                <option value="">Hr</option>
+                <option>1</option><option>2</option><option>3</option><option>4</option>
+                <option>5</option><option>6</option><option>7</option><option>8</option>
+                <option>9</option><option>10</option><option>11</option><option>12</option>
+              </select>
+              <select id="fEM">
+                <option value="">Min</option>
+                <option value="00">00</option><option value="05">05</option><option value="10">10</option>
+                <option value="15">15</option><option value="20">20</option><option value="25">25</option>
+                <option value="30">30</option><option value="35">35</option><option value="40">40</option>
+                <option value="45">45</option><option value="50">50</option><option value="55">55</option>
+              </select>
+              <select id="fEAP"><option value="AM">AM</option><option value="PM">PM</option></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="row c2">
+          <div class="fg">
+            <label>Machine Runtime (min) <span class="req">*</span></label>
+            <input type="number" id="fRuntime" placeholder="Stitch time in minutes" min="1" />
+          </div>
+          <div class="fg">
+            <label>Changeover <span class="req">*</span></label>
+            <select id="fChangeover">
+              <option value="">— Select —</option>
+              <option value="10">10 min</option>
+              <option value="15">15 min</option>
+              <option value="20">20 min</option>
+              <option value="25">25 min</option>
+              <option value="30">30 min</option>
+            </select>
+          </div>
+        </div>
+
+      </div>
+      <!-- END PRODUCTION FIELDS -->
+
+      <!-- Notes — always -->
+      <div class="fg" style="margin-top:2px;">
+        <label>Notes</label>
+        <textarea id="fNotes" placeholder="Optional — missed target reasons, quality notes, anything relevant…"></textarea>
+      </div>
+
+      <div class="divider"></div>
+      <button class="btn-add" id="addBtn" onclick="addJob()">+ Add Job</button>
+
+    </div>
+  </div>
+
+  <!-- ── TODAY'S JOB LIST ── -->
+  <div class="section">
+    <div class="section-head" style="justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="section-dot"></div>
+        <div class="section-title">Today's Job List</div>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn-sm" onclick="exportCSV()">Export CSV</button>
+        <button class="btn-sm danger" onclick="clearLog()">Clear</button>
+      </div>
+    </div>
+    <div class="section-body" style="padding-top:0;">
+
+      <div id="jobTableWrap">
+        <div class="empty">No jobs added yet.</div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <button class="btn-save" id="saveBtn" onclick="saveAll()">Save All Jobs</button>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- CONFIG MODAL -->
+<div class="overlay" id="configOverlay">
+  <div class="modal-box">
+    <h3>Configure Apps Script URL</h3>
+    <p>Paste your deployed Google Apps Script web app URL to enable saving to Google Sheets.</p>
+    <div class="fg">
+      <label>Apps Script URL</label>
+      <input type="text" id="configUrlInput" placeholder="https://script.google.com/macros/s/..." />
+    </div>
+    <div class="modal-btns">
+      <button class="btn-save" style="font-size:13px;padding:9px;" onclick="saveConfig()">Save</button>
+      <button class="btn-sm" style="flex:1;" onclick="document.getElementById('configOverlay').classList.remove('open')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="page-footer">
+  DecoPress Embroidery Tracker &nbsp;·&nbsp;
+  <a href="#" onclick="document.getElementById('configOverlay').classList.add('open');return false;">⚙ Configure</a>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  MACHINE REVENUE TARGETS  (0 = no target)
+// ═══════════════════════════════════════════════
+const MACHINE_TARGETS = {
+  '8-Head':        1000,
+  '6-Head A':       800,
+  '6-Head B':       800,
+  'Single-Head 1':    0,
+  'Single-Head 2':    0,
+  'Single-Head 3':    0,
+};
+
+// ═══════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════
+const SCRIPT_KEY = 'emb_script_url';
+let scriptUrl = localStorage.getItem(SCRIPT_KEY) || '';
+let jobs = [];
+let shayAction = '';
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+window.onload = function () {
+  const now = new Date();
+  document.getElementById('hDate').textContent =
+    now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  try { const s = sessionStorage.getItem('emb_staging'); if (s) jobs = JSON.parse(s); } catch(e){}
+  renderTable();
+  updateSummary();
+};
+
+// ═══════════════════════════════════════════════
+//  OPERATOR CHANGE
+// ═══════════════════════════════════════════════
+function onOperatorChange() {
+  const op = v('hOperator');
+  const isShay = op === 'Shay Chavez';
+  document.getElementById('leadBanner').classList.toggle('visible', isShay);
+  document.getElementById('leadSection').style.display    = isShay ? 'block' : 'none';
+  document.getElementById('regularFields').style.display  = isShay ? 'none'  : 'block';
+  document.getElementById('entryTitle').textContent = isShay ? 'Lead Entry — Shay Chavez' : 'Quick Job Entry';
+  if (isShay) { shayAction = ''; clearActionPanels(); }
+  updateSummary();
+}
+
+// ═══════════════════════════════════════════════
+//  ACTION TOGGLE
+// ═══════════════════════════════════════════════
+function setAction(action) {
+  shayAction = action;
+  ['sample','co','edit','gprod'].forEach(a => {
+    document.getElementById('ab-' + a).classList.toggle('active', a === action);
+  });
+  document.getElementById('panel-sample').style.display  = action === 'sample' ? 'block' : 'none';
+  document.getElementById('panel-co').style.display      = action === 'co'     ? 'block' : 'none';
+  document.getElementById('panel-edit').style.display    = action === 'edit'   ? 'block' : 'none';
+  document.getElementById('regularFields').style.display = action === 'gprod'  ? 'block' : 'none';
+}
+
+function clearActionPanels() {
+  ['sample','co','edit','gprod'].forEach(a => document.getElementById('ab-'+a).classList.remove('active'));
+  ['panel-sample','panel-co','panel-edit'].forEach(id => document.getElementById(id).style.display = 'none');
+  document.getElementById('regularFields').style.display = 'none';
+}
+
+// ═══════════════════════════════════════════════
+//  COLOR ROWS
+// ═══════════════════════════════════════════════
+function renderColorRows() {
+  const n = parseInt(v('fNumColors')) || 0;
+  const c = document.getElementById('colorContainer');
+  if (!n) { c.innerHTML = ''; return; }
+  c.innerHTML =
+    `<div class="color-hdr"><span></span><span>Color Name / #</span><span>Spools Avail</span></div>` +
+    Array.from({length: n}, (_,i) => `
+      <div class="color-row">
+        <div class="color-num">${i+1}</div>
+        <input type="text"   id="cName_${i}"   placeholder="e.g. Navy 820" />
+        <input type="number" id="cSpools_${i}" placeholder="0" min="0" />
+      </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════
+//  REVENUE CALC
+// ═══════════════════════════════════════════════
+function calcRevenue() {
+  const qty   = parseFloat(v('fQty'))       || 0;
+  const price = parseFloat(v('fUnitPrice')) || 0;
+  document.getElementById('revDisplay').textContent = '$' + (qty * price).toFixed(2);
+}
+
+// ═══════════════════════════════════════════════
+//  TIME HELPERS
+// ═══════════════════════════════════════════════
+function toMins(hr, min, ap) {
+  let h = parseInt(hr), m = parseInt(min);
+  if (isNaN(h) || isNaN(m)) return null;
+  if (ap === 'PM' && h !== 12) h += 12;
+  if (ap === 'AM' && h === 12) h = 0;
+  return h * 60 + m;
+}
+
+function fmtMin(m) {
+  if (!m || m <= 0) return '0m';
+  const h = Math.floor(m/60), mn = m % 60;
+  return h > 0 ? `${h}h ${mn}m` : `${mn}m`;
+}
+
+function v(id) { return document.getElementById(id)?.value || ''; }
+
+// ═══════════════════════════════════════════════
+//  ADD JOB
+// ═══════════════════════════════════════════════
+function addJob() {
+  const operator = v('hOperator');
+  const machine  = v('hMachine');
+  if (!operator) { showAlert('Select an operator first.', 'bad'); return; }
+  if (!machine)  { showAlert('Select a machine first.', 'bad'); return; }
+
+  const jobNum  = document.getElementById('fJobNum').value.trim();
+  const jobName = document.getElementById('fJobName').value.trim();
+  const notes   = document.getElementById('fNotes').value.trim();
+  if (!jobNum)  { err('fJobNum');  showAlert('Job Number is required.', 'bad'); return; }
+  if (!jobName) { err('fJobName'); showAlert('Job Name is required.', 'bad'); return; }
+  ok('fJobNum'); ok('fJobName');
+
+  const isShay = operator === 'Shay Chavez';
+  let job = {
+    id: Date.now(),
+    date: new Date().toISOString().slice(0,10),
+    operator, machine, jobNum, jobName, notes,
+    isShay, action: 'prod'
+  };
+
+  if (isShay) {
+    if (!shayAction) { showAlert('Select an action type.', 'bad'); return; }
+    job.action = shayAction;
+
+    if (shayAction === 'sample') {
+      const sType  = v('fSampleType');
+      const iQty   = v('fIntendedQty');
+      const nColV  = v('fNumColors');
+      if (!sType)  { showAlert('Select sample type.', 'bad'); return; }
+      if (!iQty)   { showAlert('Enter intended order qty.', 'bad'); return; }
+      if (!nColV)  { showAlert('Select number of colors.', 'bad'); return; }
+      const n = parseInt(nColV);
+      const colors = [];
+      for (let i = 0; i < n; i++) {
+        const name   = document.getElementById('cName_'   + i)?.value.trim() || '';
+        const spoolV = document.getElementById('cSpools_' + i)?.value;
+        if (!name)             { showAlert(`Enter a name for Color ${i+1}.`, 'bad'); return; }
+        if (spoolV === '' || spoolV === null || spoolV === undefined) {
+          showAlert(`Enter spool count for Color ${i+1}. Enter 0 if none available.`, 'bad'); return;
+        }
+        colors.push({ name, spools: parseInt(spoolV) });
+      }
+      job = { ...job, sampleType: sType, intendedQty: parseInt(iQty), numColors: n, colors };
+    }
+
+    else if (shayAction === 'co') {
+      const coOp  = v('fCoOp');
+      const coDur = v('fCoDur');
+      if (!coOp)  { showAlert('Select the operator you assisted.', 'bad'); return; }
+      if (!coDur) { showAlert('Select duration for CO Assist.', 'bad'); return; }
+      job = { ...job, coOp, coDur: parseInt(coDur) };
+    }
+
+    else if (shayAction === 'edit') {
+      const asset  = document.getElementById('fAssetCode').value.trim();
+      const editDr = v('fEditDur');
+      if (!asset)  { showAlert('Enter the Codewolf Asset Code.', 'bad'); return; }
+      if (!editDr) { showAlert('Enter duration for File Edit.', 'bad'); return; }
+      job = { ...job, assetCode: asset, editDur: parseInt(editDr) };
+    }
+
+    else if (shayAction === 'gprod') {
+      const pd = buildProd();
+      if (!pd) return;
+      job = { ...job, ...pd };
+    }
+  } else {
+    const pd = buildProd();
+    if (!pd) return;
+    job = { ...job, ...pd };
+  }
+
+  jobs.push(job);
+  sessionStorage.setItem('emb_staging', JSON.stringify(jobs));
+  renderTable();
+  updateSummary();
+  resetForm();
+  showAlert('Job added to log.', 'ok');
+}
+
+function buildProd() {
+  const qty = v('fQty'), price = v('fUnitPrice');
+  const sH = v('fSH'), sM = v('fSM'), sAP = v('fSAP');
+  const eH = v('fEH'), eM = v('fEM'), eAP = v('fEAP');
+  const runtime = v('fRuntime'), co = v('fChangeover');
+
+  if (!qty)     { showAlert('Enter Unit Qty.', 'bad'); return null; }
+  if (!price)   { showAlert('Enter Unit Price.', 'bad'); return null; }
+  if (!sH || !sM) { showAlert('Enter Start Time.', 'bad'); return null; }
+  if (!eH || !eM) { showAlert('Enter Stop Time.', 'bad'); return null; }
+  if (!runtime) { showAlert('Enter Machine Runtime.', 'bad'); return null; }
+  if (!co)      { showAlert('Select Changeover time.', 'bad'); return null; }
+
+  const startMins = toMins(sH, sM, sAP);
+  const stopMins  = toMins(eH, eM, eAP);
+  if (stopMins <= startMins) { showAlert('Stop time must be after start time.', 'bad'); return null; }
+
+  const elapsed = stopMins - startMins;
+  const revenue = parseFloat(qty) * parseFloat(price);
+
+  return {
+    qty: parseInt(qty), unitPrice: parseFloat(price), revenue,
+    startTime: `${sH}:${sM} ${sAP}`, stopTime: `${eH}:${eM} ${eAP}`,
+    startMins, stopMins, elapsed,
+    runtime: parseInt(runtime), changeover: parseInt(co)
+  };
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER TABLE
+// ═══════════════════════════════════════════════
+function renderTable() {
+  const wrap = document.getElementById('jobTableWrap');
+  if (!jobs.length) {
+    wrap.innerHTML = '<div class="empty">No jobs added yet.</div>';
+    return;
+  }
+
+  const rows = [...jobs].reverse().map(j => {
+    const chip = chipFor(j);
+    let desc = '', rev = '', meta = '';
+
+    if (j.action === 'prod' || !j.isShay) {
+      desc = `<div class="job-name">${j.jobName} ${chip}</div>`;
+      meta = `<div class="job-meta">${j.machine} · ${j.startTime} → ${j.stopTime} · ${fmtMin(j.elapsed)} · CO: ${j.changeover}m · Runtime: ${j.runtime}m</div>`;
+      rev  = `<span class="rev-val">$${j.revenue.toFixed(2)}</span><div style="font-size:11px;color:var(--muted);">${j.qty} pcs</div>`;
+    } else if (j.action === 'sample') {
+      desc = `<div class="job-name">${j.jobName} ${chip}</div>`;
+      const spools = j.colors.map(c => `${c.name}: ${c.spools}`).join(', ');
+      meta = `<div class="job-meta">${j.sampleType} · ${j.numColors} colors · Intended: ${j.intendedQty} pcs · ${spools}</div>`;
+      rev  = `<span style="font-size:11px;color:var(--muted);">Sample</span>`;
+    } else if (j.action === 'co') {
+      desc = `<div class="job-name">${j.jobName} ${chip}</div>`;
+      meta = `<div class="job-meta">Assisted: ${j.coOp} · ${j.coDur} min</div>`;
+      rev  = `<span style="font-size:11px;color:var(--muted);">${j.coDur}m</span>`;
+    } else if (j.action === 'edit') {
+      desc = `<div class="job-name">${j.jobName} ${chip}</div>`;
+      meta = `<div class="job-meta">Asset: ${j.assetCode} · ${j.editDur} min</div>`;
+      rev  = `<span style="font-size:11px;color:var(--muted);">${j.editDur}m edit</span>`;
+    }
+
+    const noteRow = j.notes ? `<div style="font-size:11px;color:var(--muted);font-style:italic;margin-top:2px;">${j.notes}</div>` : '';
+
+    return `<tr>
+      <td><span class="job-num">${j.jobNum}</span></td>
+      <td>${desc}${meta}${noteRow}</td>
+      <td>${rev}</td>
+      <td><button class="del-btn" onclick="removeJob(${j.id})" title="Remove">✕</button></td>
+    </tr>`;
+  }).join('');
+
+  wrap.innerHTML = `<table class="job-table">
+    <thead><tr>
+      <th>Job #</th>
+      <th>Description</th>
+      <th>Revenue</th>
+      <th></th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+function chipFor(j) {
+  if (!j.isShay) return '';
+  const map = {
+    sample: ['chip-sample','Sample'],
+    co:     ['chip-co','CO Assist'],
+    edit:   ['chip-edit','File Edit'],
+    gprod:  ['chip-prod','Production']
+  };
+  const [cls, lbl] = map[j.action] || ['chip-prod','Prod'];
+  return `<span class="chip ${cls}">${lbl}</span>`;
+}
+
+function removeJob(id) {
+  jobs = jobs.filter(j => j.id !== id);
+  sessionStorage.setItem('emb_staging', JSON.stringify(jobs));
+  renderTable();
+  updateSummary();
+}
+
+// ═══════════════════════════════════════════════
+//  SUMMARY
+// ═══════════════════════════════════════════════
+function updateSummary() {
+  const prodJobs = jobs.filter(j => j.action === 'prod' || !j.isShay);
+  const totalPcs = prodJobs.reduce((a,j) => a + (j.qty || 0), 0);
+  const totalRev = prodJobs.reduce((a,j) => a + (j.revenue || 0), 0);
+  const totalMin = prodJobs.reduce((a,j) => a + (j.elapsed || 0), 0);
+  const pcsHr    = totalMin > 0 ? ((totalPcs / totalMin) * 60).toFixed(1) : '—';
+
+  document.getElementById('sJobs').textContent  = jobs.length;
+  document.getElementById('sPcs').textContent   = totalPcs;
+  document.getElementById('sRev').textContent   = '$' + totalRev.toFixed(2);
+  document.getElementById('sPcsHr').textContent = pcsHr;
+
+  const machine = v('hMachine');
+  const target  = MACHINE_TARGETS[machine] || 0;
+  const tEl     = document.getElementById('sTarget');
+  if (!target || !machine) {
+    tEl.textContent = ''; tEl.className = 'target-line none';
+  } else {
+    const diff = (totalRev - target).toFixed(0);
+    const hit  = totalRev >= target;
+    tEl.textContent = hit ? `✓ Target hit (+$${diff})` : `$${Math.abs(diff)} to target`;
+    tEl.className   = 'target-line ' + (hit ? 'hit' : 'miss');
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  SAVE ALL
+// ═══════════════════════════════════════════════
+function saveAll() {
+  if (!jobs.length) { showAlert('No jobs to save.', 'bad'); return; }
+  if (!v('hOperator')) { showAlert('Select an operator first.', 'bad'); return; }
+  if (!v('hMachine'))  { showAlert('Select a machine first.', 'bad'); return; }
+
+  const key = 'emb_jobs_' + new Date().toISOString().slice(0,10);
+  const existing = JSON.parse(localStorage.getItem(key) || '[]');
+  localStorage.setItem(key, JSON.stringify([...existing, ...jobs]));
+  sessionStorage.removeItem('emb_staging');
+
+  if (scriptUrl) {
+    const btn = document.getElementById('saveBtn');
+    btn.textContent = 'Saving…'; btn.disabled = true;
+    fetch(scriptUrl, {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobs })
+    }).then(() => {
+      showAlert(`${jobs.length} job(s) saved to Google Sheets.`, 'ok');
+    }).catch(() => {
+      showAlert(`Sheet sync failed — ${jobs.length} job(s) saved locally.`, 'bad');
+    }).finally(() => {
+      btn.textContent = 'Save All Jobs'; btn.disabled = false;
+      jobs = []; renderTable(); updateSummary();
+    });
+  } else {
+    showAlert(`${jobs.length} job(s) saved locally. Configure Apps Script URL to sync to Sheets.`, 'ok');
+    jobs = []; renderTable(); updateSummary();
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  RESET FORM
+// ═══════════════════════════════════════════════
+function resetForm() {
+  ['fJobNum','fJobName','fQty','fUnitPrice','fRuntime','fNotes','fIntendedQty','fAssetCode','fEditDur']
+    .forEach(id => { const el = document.getElementById(id); if (el) { el.value = ''; el.classList.remove('err'); } });
+  ['fSH','fSM','fEH','fEM','fSampleType','fNumColors','fCoOp','fCoDur','fChangeover']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('fSAP').value = 'AM';
+  document.getElementById('fEAP').value = 'AM';
+  document.getElementById('revDisplay').textContent = '$0.00';
+  document.getElementById('colorContainer').innerHTML = '';
+  if (v('hOperator') === 'Shay Chavez') { shayAction = ''; clearActionPanels(); }
+}
+
+// ═══════════════════════════════════════════════
+//  EXPORT CSV
+// ═══════════════════════════════════════════════
+function exportCSV() {
+  const key = 'emb_jobs_' + new Date().toISOString().slice(0,10);
+  const saved = JSON.parse(localStorage.getItem(key) || '[]');
+  const all = [...saved, ...jobs];
+  if (!all.length) { showAlert('No jobs to export.', 'bad'); return; }
+  const hdrs = ['Date','Operator','Machine','Job #','Job Name','Action',
+    'Qty','Unit$','Revenue','Start','Stop','Elapsed(min)','Runtime(min)','Changeover(min)',
+    'Sample Type','Intended Qty','Colors','CO Operator','CO Duration','Asset Code','Edit Duration','Notes'];
+  const rows = all.map(j => [
+    j.date, j.operator, j.machine, j.jobNum, j.jobName, j.action,
+    j.qty||'', j.unitPrice||'', j.revenue ? j.revenue.toFixed(2):'',
+    j.startTime||'', j.stopTime||'', j.elapsed||'', j.runtime||'', j.changeover||'',
+    j.sampleType||'', j.intendedQty||'',
+    j.colors ? j.colors.map(c=>`${c.name}:${c.spools}`).join('; '):'',
+    j.coOp||'', j.coDur||'', j.assetCode||'', j.editDur||'', j.notes||''
+  ].map(val=>`"${String(val).replace(/"/g,'""')}"`).join(','));
+  const csv = [hdrs.join(','), ...rows].join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download = `emb_tracker_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+// ═══════════════════════════════════════════════
+//  MISC
+// ═══════════════════════════════════════════════
+function clearLog() {
+  if (!confirm('Remove all unsaved jobs?')) return;
+  jobs = []; sessionStorage.removeItem('emb_staging');
+  renderTable(); updateSummary();
+}
+function err(id) { document.getElementById(id)?.classList.add('err'); }
+function ok(id)  { document.getElementById(id)?.classList.remove('err'); }
+function showAlert(msg, type) {
+  const el = document.getElementById('alertBox');
+  el.textContent = msg; el.className = 'alert show ' + type;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.className = 'alert', 5000);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function saveConfig() {
+  scriptUrl = document.getElementById('configUrlInput').value.trim();
+  localStorage.setItem(SCRIPT_KEY, scriptUrl);
+  document.getElementById('configOverlay').classList.remove('open');
+  showAlert('Apps Script URL saved.', 'ok');
+}
+</script>
+</body>
+</html>

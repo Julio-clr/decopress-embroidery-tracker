@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Embroidery Department Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:   #1a2e4a;
+  --navy2:  #15263e;
+  --blue:   #1e4d8c;
+  --accent: #2563eb;
+  --accent2:#1d4ed8;
+  --bg:     #eef1f5;
+  --card:   #ffffff;
+  --border: #dde3ec;
+  --text:   #0f172a;
+  --muted:  #64748b;
+  --light:  #f8fafc;
+  --green:  #16a34a;
+  --red:    #dc2626;
+  --amber:  #d97706;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; }
+
+/* ── PIN GATE ── */
+#pinGate {
+  position: fixed; inset: 0;
+  background: var(--navy);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+}
+.pin-box {
+  background: #fff; border-radius: 10px; padding: 32px 36px;
+  width: 320px; text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+.pin-dp { width: 36px; height: 36px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #fff; margin: 0 auto 12px; }
+.pin-box h2 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+.pin-box p  { font-size: 12px; color: var(--muted); margin-bottom: 18px; }
+.pin-input  { width: 100%; padding: 10px; border: 1.5px solid var(--border); border-radius: 6px; font-size: 20px; text-align: center; letter-spacing: 8px; outline: none; margin-bottom: 10px; font-family: 'Inter', sans-serif; }
+.pin-input:focus { border-color: var(--accent); }
+.pin-btn    { width: 100%; background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 10px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; }
+.pin-btn:hover { background: var(--accent2); }
+.pin-err    { color: var(--red); font-size: 12px; margin-top: 8px; min-height: 18px; }
+
+/* ── HEADER ── */
+.header {
+  background: var(--navy); padding: 0 24px; height: 44px;
+  display: flex; align-items: center; justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  position: sticky; top: 0; z-index: 50;
+}
+.header-left { display: flex; align-items: center; gap: 10px; }
+.dp-badge { width: 28px; height: 28px; background: var(--accent); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; }
+.header-title { font-size: 14px; font-weight: 600; color: #fff; }
+.header-right { display: flex; align-items: center; gap: 14px; }
+.header-date  { font-size: 12px; color: rgba(255,255,255,0.6); font-weight: 500; }
+.refresh-btn  { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.8); border-radius: 5px; padding: 4px 10px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: 'Inter', sans-serif; transition: background 0.12s; }
+.refresh-btn:hover { background: rgba(255,255,255,0.15); }
+
+/* ── PERIOD TOGGLE ── */
+.period-wrap { padding: 14px 20px 0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.period-bar  { display: flex; gap: 3px; background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 3px; }
+.per-btn {
+  padding: 5px 12px; border: none; border-radius: 4px;
+  font-size: 12px; font-weight: 500; cursor: pointer; color: var(--muted);
+  background: none; font-family: 'Inter', sans-serif; transition: all 0.12s; white-space: nowrap;
+}
+.per-btn.active { background: var(--accent); color: #fff; font-weight: 600; }
+.per-btn:hover:not(.active) { background: var(--light); color: var(--text); }
+
+/* pcs/hr toggle */
+.pcshr-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.toggle-switch { position: relative; width: 36px; height: 20px; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-slider { position: absolute; inset: 0; background: var(--border); border-radius: 20px; cursor: pointer; transition: background 0.2s; }
+.toggle-slider::before { content: ''; position: absolute; width: 14px; height: 14px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform 0.2s; }
+.toggle-switch input:checked + .toggle-slider { background: var(--accent); }
+.toggle-switch input:checked + .toggle-slider::before { transform: translateX(16px); }
+.toggle-lbl { font-weight: 600; }
+
+/* ── MAIN ── */
+.main { max-width: 1060px; margin: 0 auto; padding: 16px 20px 60px; }
+
+/* ── SUMMARY CARDS ── */
+.cards-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 16px; }
+.card {
+  background: var(--card); border-radius: 8px;
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  padding: 14px 16px;
+}
+.card.dark { background: var(--navy); border-color: var(--navy); }
+.c-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 6px; }
+.card.dark .c-label { color: rgba(255,255,255,0.5); }
+.c-val   { font-size: 24px; font-weight: 700; color: var(--accent); line-height: 1; }
+.card.dark .c-val { color: #fff; }
+.c-sub   { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.card.dark .c-sub { color: rgba(255,255,255,0.45); }
+
+/* ── SECTION ── */
+.section { background: var(--card); border-radius: 8px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 14px; overflow: hidden; }
+.sec-head { padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+.sec-title-row { display: flex; align-items: center; gap: 8px; }
+.sec-dot  { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+.sec-title{ font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text); }
+
+/* ── OPERATOR TABLE ── */
+.op-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.op-table th { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.7px; color: var(--muted); padding: 9px 14px; text-align: left; background: var(--light); border-bottom: 1px solid var(--border); }
+.op-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.op-table tr:last-child td { border-bottom: none; }
+.op-table tr:hover td { background: #f8fafc; cursor: pointer; }
+.op-link  { color: var(--accent); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.op-link:hover { color: var(--accent2); }
+.rev-strong { font-weight: 700; color: var(--green); }
+.badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 10px; }
+.badge-ok  { background: #dcfce7; color: var(--green); }
+.badge-na  { background: var(--light); color: var(--muted); }
+
+/* ── TWO COL ── */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+
+/* ── MACHINE BARS ── */
+.machine-row { display: flex; align-items: center; gap: 10px; padding: 6px 16px; }
+.machine-name { font-size: 12px; font-weight: 500; width: 110px; flex-shrink: 0; }
+.bar-track { flex: 1; height: 7px; background: var(--border); border-radius: 4px; overflow: hidden; }
+.bar-fill  { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.4s; }
+.bar-count { font-size: 11px; color: var(--muted); width: 50px; text-align: right; flex-shrink: 0; }
+
+/* ── LEAD SECTION ── */
+.lead-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; padding: 14px 16px; }
+.lead-card { background: var(--light); border: 1px solid var(--border); border-radius: 7px; padding: 12px 14px; }
+.lead-card-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 8px; }
+.lead-val  { font-size: 20px; font-weight: 700; color: var(--accent); }
+.lead-sub  { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.lead-list { margin-top: 10px; }
+.lead-item { font-size: 12px; padding: 5px 0; border-bottom: 1px solid var(--border); color: var(--text); }
+.lead-item:last-child { border-bottom: none; }
+.lead-item .li-meta { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+/* ── OPERATOR DETAIL ── */
+#opDetail { display: none; }
+.back-btn { background: none; border: none; color: var(--accent); font-size: 13px; font-weight: 600; cursor: pointer; padding: 0; display: flex; align-items: center; gap: 5px; margin-bottom: 14px; font-family: 'Inter', sans-serif; }
+.back-btn:hover { color: var(--accent2); }
+.op-name-lg { font-size: 20px; font-weight: 700; margin-bottom: 2px; }
+.op-sub-lg  { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+
+/* detail period bar */
+.detail-period { display: flex; gap: 3px; background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 3px; width: fit-content; margin-bottom: 14px; }
+.dp-btn { padding: 5px 11px; border: none; border-radius: 4px; font-size: 12px; font-weight: 500; cursor: pointer; color: var(--muted); background: none; font-family: 'Inter', sans-serif; white-space: nowrap; }
+.dp-btn.active { background: var(--accent); color: #fff; font-weight: 600; }
+
+/* detail job table */
+.detail-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.detail-table th { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.7px; color: var(--muted); padding: 8px 12px; text-align: left; background: var(--light); border-bottom: 1px solid var(--border); }
+.detail-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.detail-table tr:last-child td { border-bottom: none; }
+.job-num-cell { font-weight: 600; color: var(--accent); font-size: 12px; white-space: nowrap; }
+.chip { display: inline-block; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 10px; text-transform: uppercase; }
+.chip-prod   { background: #eff6ff; color: var(--accent); }
+.chip-sample { background: #f0fdf4; color: var(--green); }
+.chip-co     { background: #fef3c7; color: var(--amber); }
+.chip-edit   { background: #eff6ff; color: var(--blue); }
+
+/* misc */
+.empty { text-align: center; color: var(--muted); padding: 24px; font-size: 13px; }
+.divider { height: 1px; background: var(--border); }
+
+/* MODAL */
+.overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; align-items: center; justify-content: center; }
+.overlay.open { display: flex; }
+.modal-box { background: #fff; border-radius: 10px; padding: 24px; width: 90%; max-width: 400px; box-shadow: 0 16px 48px rgba(0,0,0,0.2); }
+.modal-box h3 { font-size: 15px; font-weight: 700; margin-bottom: 5px; }
+.modal-box p  { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+.modal-btns { display: flex; gap: 8px; margin-top: 12px; }
+.btn-save { background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; }
+.btn-save:hover { background: var(--accent2); }
+.btn-sm { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 5px; padding: 7px 14px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: 'Inter', sans-serif; flex: 1; }
+.btn-sm:hover { border-color: var(--accent); color: var(--accent); }
+.fg { display: flex; flex-direction: column; gap: 3px; }
+.fg label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.fg input { border: 1px solid var(--border); border-radius: 5px; padding: 7px 10px; font-family: 'Inter', sans-serif; font-size: 13px; outline: none; width: 100%; }
+.fg input:focus { border-color: var(--accent); }
+
+.page-footer { text-align: center; padding: 10px; font-size: 11px; color: var(--muted); }
+.page-footer a { color: var(--accent); text-decoration: none; }
+
+#mainContent { display: none; }
+</style>
+</head>
+<body>
+
+<!-- ── PIN GATE ── -->
+<div id="pinGate">
+  <div class="pin-box">
+    <div class="pin-dp">DP</div>
+    <h2>Embroidery Dashboard</h2>
+    <p>Manager access — enter PIN to continue</p>
+    <input type="password" class="pin-input" id="pinInput" maxlength="6" placeholder="••••••"
+      onkeydown="if(event.key==='Enter')checkPin()" />
+    <button class="pin-btn" onclick="checkPin()">Unlock</button>
+    <div class="pin-err" id="pinErr"></div>
+  </div>
+</div>
+
+<!-- ── MAIN ── -->
+<div id="mainContent">
+
+  <div class="header">
+    <div class="header-left">
+      <div class="dp-badge">DP</div>
+      <span class="header-title">Embroidery Department Dashboard</span>
+    </div>
+    <div class="header-right">
+      <span class="header-date" id="hDate">—</span>
+      <button class="refresh-btn" onclick="loadData()">↺ Refresh</button>
+    </div>
+  </div>
+
+  <!-- DEPT VIEW -->
+  <div id="deptView">
+
+    <div class="period-wrap">
+      <div class="period-bar">
+        <button class="per-btn active" onclick="setPeriod('today',this)">Today</button>
+        <button class="per-btn" onclick="setPeriod('yesterday',this)">Yesterday</button>
+        <button class="per-btn" onclick="setPeriod('week',this)">This Week</button>
+        <button class="per-btn" onclick="setPeriod('lastweek',this)">Last Week</button>
+        <button class="per-btn" onclick="setPeriod('month',this)">This Month</button>
+        <button class="per-btn" onclick="setPeriod('lastmonth',this)">Last Month</button>
+      </div>
+      <div class="pcshr-toggle">
+        <span>Pcs/Hr:</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="adjustedToggle" onchange="renderDept()" />
+          <span class="toggle-slider"></span>
+        </label>
+        <span class="toggle-lbl" id="toggleLbl">Raw</span>
+      </div>
+    </div>
+
+    <div class="main">
+
+      <!-- SUMMARY CARDS -->
+      <div class="cards-row">
+        <div class="card dark">
+          <div class="c-label">Total Jobs</div>
+          <div class="c-val" id="cJobs">—</div>
+          <div class="c-sub" id="cJobsSub">—</div>
+        </div>
+        <div class="card dark">
+          <div class="c-label">Total Pieces</div>
+          <div class="c-val" id="cPcs">—</div>
+          <div class="c-sub" id="cPcsSub">—</div>
+        </div>
+        <div class="card dark">
+          <div class="c-label">Total Revenue</div>
+          <div class="c-val" id="cRev">—</div>
+          <div class="c-sub" id="cRevSub">—</div>
+        </div>
+        <div class="card">
+          <div class="c-label">Avg Pcs / Hr</div>
+          <div class="c-val" id="cPcsHr" style="color:var(--text);">—</div>
+          <div class="c-sub" id="cPcsHrSub">—</div>
+        </div>
+      </div>
+
+      <!-- OPERATOR TABLE -->
+      <div class="section" style="margin-bottom:14px;">
+        <div class="sec-head">
+          <div class="sec-title-row"><div class="sec-dot"></div><div class="sec-title">Operator Breakdown</div></div>
+        </div>
+        <div id="opTableWrap">
+          <div class="empty">No data for selected period.</div>
+        </div>
+      </div>
+
+      <!-- MACHINE + LEAD -->
+      <div class="two-col">
+
+        <!-- MACHINE UTILIZATION -->
+        <div class="section">
+          <div class="sec-head">
+            <div class="sec-title-row"><div class="sec-dot"></div><div class="sec-title">Machine Utilization</div></div>
+          </div>
+          <div id="machineChart" style="padding:8px 0 6px;">
+            <div class="empty">No data</div>
+          </div>
+        </div>
+
+        <!-- LEAD ACTIVITY -->
+        <div class="section">
+          <div class="sec-head">
+            <div class="sec-title-row"><div class="sec-dot"></div><div class="sec-title">Lead Activity — Shay Chavez</div></div>
+          </div>
+          <div id="leadActivity">
+            <div class="empty">No lead activity for this period.</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- NOTES / OBSERVATIONS -->
+      <div class="section">
+        <div class="sec-head">
+          <div class="sec-title-row"><div class="sec-dot"></div><div class="sec-title">Notes & Observations</div></div>
+        </div>
+        <div id="notesLog" style="padding:8px 0;">
+          <div class="empty">No notes logged for this period.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── OPERATOR DETAIL VIEW ── -->
+  <div id="opDetail">
+    <div class="main" style="padding-top:16px;">
+      <button class="back-btn" onclick="backToDept()">← Back to Department</button>
+      <div class="op-name-lg" id="opDetailName">—</div>
+      <div class="op-sub-lg"  id="opDetailSub">—</div>
+
+      <div class="detail-period">
+        <button class="dp-btn active" onclick="setOpPeriod('today',this)">Today</button>
+        <button class="dp-btn" onclick="setOpPeriod('yesterday',this)">Yesterday</button>
+        <button class="dp-btn" onclick="setOpPeriod('week',this)">This Week</button>
+        <button class="dp-btn" onclick="setOpPeriod('lastweek',this)">Last Week</button>
+        <button class="dp-btn" onclick="setOpPeriod('month',this)">This Month</button>
+        <button class="dp-btn" onclick="setOpPeriod('lastmonth',this)">Last Month</button>
+      </div>
+
+      <div class="cards-row" style="grid-template-columns:repeat(4,1fr);">
+        <div class="card dark"><div class="c-label">Jobs</div><div class="c-val" id="opCJobs">—</div></div>
+        <div class="card dark"><div class="c-label">Pieces</div><div class="c-val" id="opCPcs">—</div></div>
+        <div class="card dark"><div class="c-label">Revenue</div><div class="c-val" id="opCRev">—</div></div>
+        <div class="card">
+          <div class="c-label">Pcs / Hr</div>
+          <div class="c-val" id="opCPcsHr" style="color:var(--text);">—</div>
+          <div class="c-sub" id="opCTarget"></div>
+        </div>
+      </div>
+
+      <div class="section" style="margin-top:14px;">
+        <div class="sec-head">
+          <div class="sec-title-row"><div class="sec-dot"></div><div class="sec-title" id="opJobLogTitle">Job Log</div></div>
+        </div>
+        <div id="opJobLog"><div class="empty">No jobs for selected period.</div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- CONFIG MODAL -->
+<div class="overlay" id="configOverlay">
+  <div class="modal-box">
+    <h3>Configure Data Source</h3>
+    <p>Paste your Google Apps Script URL to load live data from Google Sheets. Without this, the dashboard reads from this browser's local storage.</p>
+    <div class="fg">
+      <label>Apps Script URL</label>
+      <input type="text" id="configUrlInput" placeholder="https://script.google.com/macros/s/..." />
+    </div>
+    <div class="modal-btns">
+      <button class="btn-save" onclick="saveConfig()">Save & Reload</button>
+      <button class="btn-sm" onclick="document.getElementById('configOverlay').classList.remove('open')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="page-footer" id="footer" style="display:none;">
+  DecoPress Embroidery Dashboard &nbsp;·&nbsp;
+  <a href="#" onclick="document.getElementById('configOverlay').classList.add('open');return false;">⚙ Configure</a>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════
+const PIN        = '16918';
+const SCRIPT_KEY = 'emb_script_url';
+const BREAK_MINS = 50; // total daily break deduction for adjusted pcs/hr
+const MACHINE_TARGETS = {
+  '8-Head': 1000, '6-Head A': 800, '6-Head B': 800,
+  'Single-Head 1': 0, 'Single-Head 2': 0, 'Single-Head 3': 0
+};
+
+let scriptUrl   = localStorage.getItem(SCRIPT_KEY) || '';
+let allData     = [];
+let period      = 'today';
+let opName      = '';
+let opPeriod    = 'today';
+
+// ═══════════════════════════════════════════════
+//  PIN
+// ═══════════════════════════════════════════════
+function checkPin() {
+  if (document.getElementById('pinInput').value === PIN) {
+    document.getElementById('pinGate').style.display    = 'none';
+    document.getElementById('mainContent').style.display = 'block';
+    document.getElementById('footer').style.display      = 'block';
+    init();
+  } else {
+    document.getElementById('pinErr').textContent = 'Incorrect PIN. Try again.';
+    document.getElementById('pinInput').value = '';
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+function init() {
+  document.getElementById('hDate').textContent =
+    new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+  loadData();
+}
+
+// ═══════════════════════════════════════════════
+//  DATA LOADING
+// ═══════════════════════════════════════════════
+function loadData() {
+  if (scriptUrl) {
+    fetch(scriptUrl + '?action=getAll')
+      .then(r => r.json())
+      .then(data => { allData = Array.isArray(data) ? data : []; renderDept(); })
+      .catch(() => { allData = fromLocalStorage(); renderDept(); });
+  } else {
+    allData = fromLocalStorage();
+    renderDept();
+  }
+}
+
+function fromLocalStorage() {
+  const jobs = [];
+  for (let key in localStorage) {
+    if (key.startsWith('emb_jobs_')) {
+      try { jobs.push(...(JSON.parse(localStorage.getItem(key)) || [])); } catch(e){}
+    }
+  }
+  return jobs;
+}
+
+// ═══════════════════════════════════════════════
+//  DATE HELPERS
+// ═══════════════════════════════════════════════
+function todayStr()  { return new Date().toISOString().slice(0,10); }
+function yStr()      { const d=new Date(); d.setDate(d.getDate()-1); return d.toISOString().slice(0,10); }
+function weekStart() {
+  const d=new Date(), day=d.getDay();
+  const diff=d.getDate()-day+(day===0?-6:1);
+  return new Date(d.getFullYear(),d.getMonth(),diff).toISOString().slice(0,10);
+}
+function lastWeekRange() {
+  const d=new Date(), day=d.getDay();
+  const thisMonday=new Date(d); thisMonday.setDate(d.getDate()-day+(day===0?-6:1));
+  const lastMon=new Date(thisMonday); lastMon.setDate(thisMonday.getDate()-7);
+  const lastSun=new Date(thisMonday); lastSun.setDate(thisMonday.getDate()-1);
+  return { start: lastMon.toISOString().slice(0,10), end: lastSun.toISOString().slice(0,10) };
+}
+function monthStart() {
+  const d=new Date(); return new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
+}
+function lastMonthRange() {
+  const d=new Date();
+  const s=new Date(d.getFullYear(),d.getMonth()-1,1);
+  const e=new Date(d.getFullYear(),d.getMonth(),0);
+  return { start: s.toISOString().slice(0,10), end: e.toISOString().slice(0,10) };
+}
+
+function filterByPeriod(data, p) {
+  const t = todayStr();
+  if (p==='today')     return data.filter(j=>j.date===t);
+  if (p==='yesterday') return data.filter(j=>j.date===yStr());
+  if (p==='week')      return data.filter(j=>j.date>=weekStart()&&j.date<=t);
+  if (p==='lastweek')  { const r=lastWeekRange(); return data.filter(j=>j.date>=r.start&&j.date<=r.end); }
+  if (p==='month')     return data.filter(j=>j.date>=monthStart()&&j.date<=t);
+  if (p==='lastmonth') { const r=lastMonthRange(); return data.filter(j=>j.date>=r.start&&j.date<=r.end); }
+  return data;
+}
+
+function periodLabel(p) {
+  return {today:'Today',yesterday:'Yesterday',week:'This Week',
+    lastweek:'Last Week',month:'This Month',lastmonth:'Last Month'}[p]||p;
+}
+
+// ═══════════════════════════════════════════════
+//  PERIOD TOGGLE
+// ═══════════════════════════════════════════════
+function setPeriod(p, btn) {
+  period = p;
+  document.querySelectorAll('.per-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderDept();
+}
+
+function onAdjustedToggle() {
+  const adj = document.getElementById('adjustedToggle').checked;
+  document.getElementById('toggleLbl').textContent = adj ? 'Adjusted' : 'Raw';
+  renderDept();
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER DEPT
+// ═══════════════════════════════════════════════
+function renderDept() {
+  const adj = document.getElementById('adjustedToggle').checked;
+  document.getElementById('toggleLbl').textContent = adj ? 'Adjusted' : 'Raw';
+  const data = filterByPeriod(allData, period);
+  renderSummaryCards(data, adj);
+  renderOpTable(data, adj);
+  renderMachineChart(data);
+  renderLeadActivity(data);
+  renderNotes(data);
+}
+
+// ── SUMMARY CARDS
+function renderSummaryCards(data, adj) {
+  const prod  = data.filter(j=>j.action==='prod'||!j.isShay);
+  const jobs  = data.length;
+  const pcs   = prod.reduce((a,j)=>a+(parseInt(j.qty)||0),0);
+  const rev   = prod.reduce((a,j)=>a+(parseFloat(j.revenue)||0),0);
+  const mins  = prod.reduce((a,j)=>a+(parseInt(j.elapsed)||0),0);
+
+  // For adjusted: subtract 50 mins per operator per day
+  let adjMins = mins;
+  if (adj) {
+    const opDays = new Set(prod.map(j=>j.operator+'|'+j.date));
+    adjMins = Math.max(mins - opDays.size * BREAK_MINS, 1);
+  }
+  const pcsHr = mins>0 ? ((pcs/adjMins)*60).toFixed(1) : '—';
+
+  document.getElementById('cJobs').textContent    = jobs;
+  document.getElementById('cJobsSub').textContent = prod.length+' production jobs';
+  document.getElementById('cPcs').textContent     = pcs.toLocaleString();
+  document.getElementById('cPcsSub').textContent  = jobs>0?(pcs/Math.max(prod.length,1)).toFixed(1)+' avg/job':'—';
+  document.getElementById('cRev').textContent     = '$'+rev.toFixed(2);
+  document.getElementById('cRevSub').textContent  = pcs>0?'$'+(rev/pcs).toFixed(2)+' avg/pc':'—';
+  document.getElementById('cPcsHr').textContent   = pcsHr;
+  document.getElementById('cPcsHrSub').textContent= adj?'Break-adjusted':'Raw elapsed time';
+}
+
+// ── OPERATOR TABLE
+function renderOpTable(data, adj) {
+  const operators = ['Shay Chavez','Karla Betancourt','Elvia De la Rosa','Jocelyn Garcia','Fabiana Proana'];
+  const wrap = document.getElementById('opTableWrap');
+
+  const rows = operators.map(op=>{
+    const opJobs  = data.filter(j=>j.operator===op);
+    const prod    = opJobs.filter(j=>j.action==='prod'||!j.isShay);
+    if (!opJobs.length) return null;
+
+    const jobs    = opJobs.length;
+    const pcs     = prod.reduce((a,j)=>a+(parseInt(j.qty)||0),0);
+    const rev     = prod.reduce((a,j)=>a+(parseFloat(j.revenue)||0),0);
+    const mins    = prod.reduce((a,j)=>a+(parseInt(j.elapsed)||0),0);
+
+    const opDays  = new Set(prod.map(j=>j.date)).size;
+    const adjMins = Math.max(mins - opDays*BREAK_MINS, 1);
+
+    const rawPhr  = mins>0?((pcs/mins)*60).toFixed(1):'—';
+    const adjPhr  = mins>0?((pcs/adjMins)*60).toFixed(1):'—';
+    const pcsHr   = adj?adjPhr:rawPhr;
+
+    const machines = [...new Set(opJobs.map(j=>j.machine))].filter(Boolean).join(', ');
+
+    return { op, jobs, pcs, rev, pcsHr, machines };
+  }).filter(Boolean).sort((a,b)=>b.rev-a.rev);
+
+  if (!rows.length) {
+    wrap.innerHTML = '<div class="empty">No data for selected period.</div>';
+    return;
+  }
+
+  wrap.innerHTML = `<table class="op-table">
+    <thead><tr>
+      <th>Operator</th>
+      <th>Jobs</th>
+      <th>Pieces</th>
+      <th>Revenue</th>
+      <th>Pcs/Hr${adj?' (Adj)':''}</th>
+      <th>Machine</th>
+    </tr></thead>
+    <tbody>
+      ${rows.map(r=>`<tr onclick="openOp('${r.op}')">
+        <td><span class="op-link">${r.op}</span></td>
+        <td>${r.jobs}</td>
+        <td>${r.pcs.toLocaleString()}</td>
+        <td class="rev-strong">$${r.rev.toFixed(2)}</td>
+        <td>${r.pcsHr}</td>
+        <td style="font-size:12px;color:var(--muted);">${r.machines||'—'}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+// ── MACHINE CHART
+function renderMachineChart(data) {
+  const machines = ['8-Head','6-Head A','6-Head B','Single-Head 1','Single-Head 2','Single-Head 3'];
+  const counts   = {};
+  machines.forEach(m=>counts[m]=0);
+  data.forEach(j=>{ if(j.machine&&counts.hasOwnProperty(j.machine)) counts[j.machine]++; });
+  const max = Math.max(...Object.values(counts),1);
+  const active = machines.filter(m=>counts[m]>0).sort((a,b)=>counts[b]-counts[a]);
+
+  const el = document.getElementById('machineChart');
+  if (!active.length) { el.innerHTML='<div class="empty">No data</div>'; return; }
+  el.innerHTML = active.map(m=>`
+    <div class="machine-row">
+      <div class="machine-name">${m}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(counts[m]/max*100).toFixed(0)}%"></div></div>
+      <div class="bar-count">${counts[m]} job${counts[m]!==1?'s':''}</div>
+    </div>`).join('');
+}
+
+// ── LEAD ACTIVITY
+function renderLeadActivity(data) {
+  const shayJobs = data.filter(j=>j.operator==='Shay Chavez'&&j.isShay);
+  const el = document.getElementById('leadActivity');
+
+  if (!shayJobs.length) {
+    el.innerHTML='<div class="empty">No lead activity for this period.</div>';
+    return;
+  }
+
+  const samples = shayJobs.filter(j=>j.action==='sample');
+  const cos     = shayJobs.filter(j=>j.action==='co');
+  const edits   = shayJobs.filter(j=>j.action==='edit');
+  const prods   = shayJobs.filter(j=>j.action==='gprod');
+
+  const totalCOmins   = cos.reduce((a,j)=>a+(parseInt(j.coDur)||0),0);
+  const totalEditMins = edits.reduce((a,j)=>a+(parseInt(j.editDur)||0),0);
+
+  let html = '<div class="lead-grid">';
+
+  // Samples
+  html += `<div class="lead-card">
+    <div class="lead-card-title">🧵 Samples</div>
+    <div class="lead-val">${samples.length}</div>
+    <div class="lead-sub">sample${samples.length!==1?'s':''} run</div>
+    <div class="lead-list">
+      ${samples.slice(0,5).map(j=>`
+        <div class="lead-item">
+          <div><strong>${j.jobNum}</strong> — ${j.jobName}</div>
+          <div class="li-meta">${j.sampleType} · ${j.numColors} colors · Intended: ${j.intendedQty} pcs</div>
+          ${j.colors?`<div class="li-meta">${j.colors.map(c=>`${c.name}: ${c.spools} spools`).join(' · ')}</div>`:''}
+        </div>`).join('')}
+      ${samples.length>5?`<div style="font-size:11px;color:var(--muted);padding-top:4px;">+${samples.length-5} more</div>`:''}
+    </div>
+  </div>`;
+
+  // CO Assists
+  html += `<div class="lead-card">
+    <div class="lead-card-title">🔄 CO Assists</div>
+    <div class="lead-val">${cos.length}</div>
+    <div class="lead-sub">${totalCOmins} min total</div>
+    <div class="lead-list">
+      ${cos.slice(0,5).map(j=>`
+        <div class="lead-item">
+          <div><strong>${j.jobNum}</strong> — ${j.jobName}</div>
+          <div class="li-meta">Assisted: ${j.coOp} · ${j.coDur} min</div>
+        </div>`).join('')}
+      ${cos.length>5?`<div style="font-size:11px;color:var(--muted);padding-top:4px;">+${cos.length-5} more</div>`:''}
+    </div>
+  </div>`;
+
+  // File Edits
+  html += `<div class="lead-card">
+    <div class="lead-card-title">✏️ File Edits</div>
+    <div class="lead-val">${edits.length}</div>
+    <div class="lead-sub">${totalEditMins} min total</div>
+    <div class="lead-list">
+      ${edits.slice(0,5).map(j=>`
+        <div class="lead-item">
+          <div><strong>${j.jobNum}</strong> — ${j.jobName}</div>
+          <div class="li-meta">Asset: ${j.assetCode} · ${j.editDur} min</div>
+        </div>`).join('')}
+      ${edits.length>5?`<div style="font-size:11px;color:var(--muted);padding-top:4px;">+${edits.length-5} more</div>`:''}
+    </div>
+  </div>`;
+
+  html += '</div>';
+
+  if (prods.length) {
+    const prodPcs = prods.reduce((a,j)=>a+(parseInt(j.qty)||0),0);
+    const prodRev = prods.reduce((a,j)=>a+(parseFloat(j.revenue)||0),0);
+    html += `<div style="padding:8px 16px 12px;font-size:12px;color:var(--muted);">
+      Also ran <strong>${prods.length}</strong> production job${prods.length!==1?'s':''} —
+      ${prodPcs} pcs · $${prodRev.toFixed(2)} revenue (included in operator totals above)
+    </div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+// ── NOTES LOG
+function renderNotes(data) {
+  const withNotes = data.filter(j=>j.notes&&j.notes.trim());
+  const el = document.getElementById('notesLog');
+  if (!withNotes.length) { el.innerHTML='<div class="empty">No notes logged for this period.</div>'; return; }
+  el.innerHTML = withNotes.map(j=>`
+    <div style="padding:8px 16px;border-bottom:1px solid var(--border);">
+      <div style="display:flex;gap:10px;align-items:flex-start;">
+        <span style="font-size:11px;font-weight:600;color:var(--accent);white-space:nowrap;">${j.jobNum}</span>
+        <div>
+          <span style="font-size:12px;font-weight:500;">${j.jobName}</span>
+          <span style="font-size:11px;color:var(--muted);margin-left:8px;">${j.operator} · ${j.date}</span>
+          <div style="font-size:12px;color:var(--text);margin-top:3px;">${j.notes}</div>
+        </div>
+      </div>
+    </div>`).join('') + '<div style="height:4px;"></div>';
+}
+
+// ═══════════════════════════════════════════════
+//  OPERATOR DETAIL
+// ═══════════════════════════════════════════════
+function openOp(name) {
+  opName   = name;
+  opPeriod = 'today';
+  document.getElementById('deptView').style.display = 'none';
+  document.getElementById('opDetail').style.display = 'block';
+  document.getElementById('opDetailName').textContent = name;
+  document.querySelectorAll('.dp-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
+  renderOpDetail();
+}
+
+function backToDept() {
+  document.getElementById('opDetail').style.display = 'none';
+  document.getElementById('deptView').style.display  = 'block';
+}
+
+function setOpPeriod(p, btn) {
+  opPeriod = p;
+  document.querySelectorAll('.dp-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderOpDetail();
+}
+
+function renderOpDetail() {
+  const adj     = document.getElementById('adjustedToggle').checked;
+  const opData  = filterByPeriod(allData.filter(j=>j.operator===opName), opPeriod);
+  const prod    = opData.filter(j=>j.action==='prod'||!j.isShay);
+
+  const jobs    = opData.length;
+  const pcs     = prod.reduce((a,j)=>a+(parseInt(j.qty)||0),0);
+  const rev     = prod.reduce((a,j)=>a+(parseFloat(j.revenue)||0),0);
+  const mins    = prod.reduce((a,j)=>a+(parseInt(j.elapsed)||0),0);
+  const opDays  = new Set(prod.map(j=>j.date)).size;
+  const adjMins = Math.max(mins - opDays*BREAK_MINS, 1);
+  const pcsHr   = mins>0?((pcs/(adj?adjMins:mins))*60).toFixed(1):'—';
+
+  document.getElementById('opDetailSub').textContent  = `${periodLabel(opPeriod)} · ${jobs} job${jobs!==1?'s':''}`;
+  document.getElementById('opJobLogTitle').textContent = `Job Log — ${periodLabel(opPeriod)}`;
+  document.getElementById('opCJobs').textContent = jobs;
+  document.getElementById('opCPcs').textContent  = pcs;
+  document.getElementById('opCRev').textContent  = '$'+rev.toFixed(2);
+  document.getElementById('opCPcsHr').textContent= pcsHr;
+
+  // Target for primary machine
+  const machines = [...new Set(prod.map(j=>j.machine))].filter(Boolean);
+  const target   = machines.length===1?(MACHINE_TARGETS[machines[0]]||0):0;
+  const tEl      = document.getElementById('opCTarget');
+  if (target && opPeriod==='today') {
+    const hit  = rev>=target;
+    const diff = Math.abs(rev-target).toFixed(0);
+    tEl.textContent = hit?`✓ Target hit (+$${diff})`:`$${diff} to target`;
+    tEl.style.color = hit?'var(--green)':'var(--red)';
+    tEl.style.fontSize = '11px'; tEl.style.fontWeight = '600'; tEl.style.marginTop='3px';
+  } else { tEl.textContent=''; }
+
+  // Job log
+  const logEl = document.getElementById('opJobLog');
+  if (!opData.length) { logEl.innerHTML='<div class="empty">No jobs for selected period.</div>'; return; }
+
+  const rows = [...opData].reverse().map(j=>{
+    const chip = j.isShay ? chipFor(j) : '';
+    let meta='', rev2='';
+    if (j.action==='prod'||!j.isShay) {
+      meta = `${j.machine} · ${j.startTime}→${j.stopTime} · ${fmtMin(j.elapsed)} · CO:${j.changeover}m · Runtime:${j.runtime}m`;
+      rev2 = `<span style="font-weight:700;color:var(--green);">$${parseFloat(j.revenue||0).toFixed(2)}</span><div style="font-size:11px;color:var(--muted);">${j.qty} pcs</div>`;
+    } else if (j.action==='sample') {
+      meta = `${j.sampleType} · ${j.numColors} colors · Intended: ${j.intendedQty} pcs`;
+      if (j.colors) meta += ` · `+j.colors.map(c=>`${c.name}:${c.spools}`).join(', ');
+      rev2 = `<span style="font-size:11px;color:var(--muted);">Sample</span>`;
+    } else if (j.action==='co') {
+      meta = `Assisted: ${j.coOp} · ${j.coDur} min`;
+      rev2 = `<span style="font-size:11px;color:var(--muted);">${j.coDur}m</span>`;
+    } else if (j.action==='edit') {
+      meta = `Asset: ${j.assetCode} · ${j.editDur} min`;
+      rev2 = `<span style="font-size:11px;color:var(--muted);">${j.editDur}m</span>`;
+    }
+    return `<tr>
+      <td><span class="job-num-cell">${j.jobNum}</span></td>
+      <td>
+        <div style="font-weight:500;">${j.jobName} ${chip}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">${meta}</div>
+        ${j.notes?`<div style="font-size:11px;color:var(--muted);font-style:italic;margin-top:2px;">${j.notes}</div>`:''}
+      </td>
+      <td style="font-size:11px;color:var(--muted);">${j.date}</td>
+      <td>${rev2}</td>
+    </tr>`;
+  }).join('');
+
+  logEl.innerHTML = `<table class="detail-table">
+    <thead><tr><th>Job #</th><th>Description</th><th>Date</th><th>Revenue</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+function chipFor(j) {
+  const map={sample:['chip-sample','Sample'],co:['chip-co','CO Assist'],edit:['chip-edit','File Edit'],gprod:['chip-prod','Production']};
+  const [cls,lbl]=(map[j.action]||['chip-prod','Prod']);
+  return `<span class="chip ${cls}">${lbl}</span>`;
+}
+
+function fmtMin(m) {
+  if (!m||m<=0) return '0m';
+  const h=Math.floor(m/60),mn=m%60;
+  return h>0?`${h}h ${mn}m`:`${mn}m`;
+}
+
+// ═══════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════
+function saveConfig() {
+  scriptUrl = document.getElementById('configUrlInput').value.trim();
+  localStorage.setItem(SCRIPT_KEY, scriptUrl);
+  document.getElementById('configOverlay').classList.remove('open');
+  loadData();
+}
+</script>
+</body>
+</html>
