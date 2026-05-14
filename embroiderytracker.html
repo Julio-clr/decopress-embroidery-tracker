@@ -416,8 +416,6 @@ textarea { resize: vertical; min-height: 50px; }
 .modal-box p  { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
 .modal-btns { display: flex; gap: 8px; margin-top: 12px; }
 
-.page-footer { text-align: center; padding: 10px; font-size: 11px; color: var(--muted); }
-.page-footer a { color: var(--accent); text-decoration: none; }
 </style>
 </head>
 <body>
@@ -722,26 +720,14 @@ textarea { resize: vertical; min-height: 50px; }
 
 </div>
 
-<!-- CONFIG MODAL -->
-<div class="overlay" id="configOverlay">
-  <div class="modal-box">
-    <h3>Configure Apps Script URL</h3>
-    <p>Paste your deployed Google Apps Script web app URL to enable saving to Google Sheets.</p>
-    <div class="fg">
-      <label>Apps Script URL</label>
-      <input type="text" id="configUrlInput" placeholder="https://script.google.com/macros/s/..." />
-    </div>
-    <div class="modal-btns">
+<div class="modal-btns">
       <button class="btn-save" style="font-size:13px;padding:9px;" onclick="saveConfig()">Save</button>
       <button class="btn-sm" style="flex:1;" onclick="document.getElementById('configOverlay').classList.remove('open')">Cancel</button>
     </div>
   </div>
 </div>
 
-<div class="page-footer">
-  DecoPress Embroidery Tracker &nbsp;·&nbsp;
-  <a href="#" onclick="document.getElementById('configOverlay').classList.add('open');return false;">⚙ Configure</a>
-</div>
+
 
 <script>
 // ═══════════════════════════════════════════════
@@ -1086,7 +1072,7 @@ function saveAll() {
     btn.textContent = 'Saving…'; btn.disabled = true;
     const encoded = encodeURIComponent(JSON.stringify(jobs));
     const url = scriptUrl + '?action=saveJobs&data=' + encoded;
-    fetch(url, { method: 'GET', mode: 'no-cors' })
+    fetch(url)
       .then(() => {
         showAlert(`✅ ${jobs.length} job(s) saved to Google Sheets.`, 'ok');
       }).catch(() => {
@@ -1159,12 +1145,7 @@ function showAlert(msg, type) {
   el._t = setTimeout(() => el.className = 'alert', 5000);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
-function saveConfig() {
-  scriptUrl = document.getElementById('configUrlInput').value.trim();
-  localStorage.setItem(SCRIPT_KEY, scriptUrl);
-  document.getElementById('configOverlay').classList.remove('open');
-  showAlert('Apps Script URL saved.', 'ok');
-}
+
 </script>
 </body>
 </html>

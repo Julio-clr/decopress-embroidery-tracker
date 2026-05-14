@@ -186,8 +186,6 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
 .fg input { border: 1px solid var(--border); border-radius: 5px; padding: 7px 10px; font-family: 'Inter', sans-serif; font-size: 13px; outline: none; width: 100%; }
 .fg input:focus { border-color: var(--accent); }
 
-.page-footer { text-align: center; padding: 10px; font-size: 11px; color: var(--muted); }
-.page-footer a { color: var(--accent); text-decoration: none; }
 
 #mainContent { display: none; }
 </style>
@@ -355,26 +353,14 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
 
 </div>
 
-<!-- CONFIG MODAL -->
-<div class="overlay" id="configOverlay">
-  <div class="modal-box">
-    <h3>Configure Data Source</h3>
-    <p>Paste your Google Apps Script URL to load live data from Google Sheets. Without this, the dashboard reads from this browser's local storage.</p>
-    <div class="fg">
-      <label>Apps Script URL</label>
-      <input type="text" id="configUrlInput" placeholder="https://script.google.com/macros/s/..." />
-    </div>
-    <div class="modal-btns">
+<div class="modal-btns">
       <button class="btn-save" onclick="saveConfig()">Save & Reload</button>
       <button class="btn-sm" onclick="document.getElementById('configOverlay').classList.remove('open')">Cancel</button>
     </div>
   </div>
 </div>
 
-<div class="page-footer" id="footer" style="display:none;">
-  DecoPress Embroidery Dashboard &nbsp;·&nbsp;
-  <a href="#" onclick="document.getElementById('configOverlay').classList.add('open');return false;">⚙ Configure</a>
-</div>
+
 
 <script>
 // ═══════════════════════════════════════════════
@@ -388,7 +374,7 @@ const MACHINE_TARGETS = {
   'Single-Head 1': 0, 'Single-Head 2': 0, 'Single-Head 3': 0
 };
 
-let scriptUrl   = localStorage.getItem(SCRIPT_KEY) || '';
+let scriptUrl   = 'https://script.google.com/macros/s/AKfycbwEr6fxFVmtdifC11t0twtLgVpnckpVDbqKg-y1hqcMdLUgWuPPNNlZBLJ1dYovVlioSg/exec';
 let allData     = [];
 let period      = 'today';
 let opName      = '';
@@ -824,12 +810,7 @@ function fmtMin(m) {
 // ═══════════════════════════════════════════════
 //  CONFIG
 // ═══════════════════════════════════════════════
-function saveConfig() {
-  scriptUrl = document.getElementById('configUrlInput').value.trim();
-  localStorage.setItem(SCRIPT_KEY, scriptUrl);
-  document.getElementById('configOverlay').classList.remove('open');
-  loadData();
-}
+
 </script>
 </body>
 </html>
