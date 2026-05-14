@@ -720,12 +720,7 @@ textarea { resize: vertical; min-height: 50px; }
 
 </div>
 
-<div class="modal-btns">
-      <button class="btn-save" style="font-size:13px;padding:9px;" onclick="saveConfig()">Save</button>
-      <button class="btn-sm" style="flex:1;" onclick="document.getElementById('configOverlay').classList.remove('open')">Cancel</button>
-    </div>
-  </div>
-</div>
+
 
 
 
@@ -1057,7 +1052,7 @@ function updateSummary() {
 // ═══════════════════════════════════════════════
 //  SAVE ALL
 // ═══════════════════════════════════════════════
-async async function saveAll() {
+async function saveAll() {
   if (!jobs.length) { showAlert('No jobs to save.', 'bad'); return; }
   if (!v('hOperator')) { showAlert('Select an operator first.', 'bad'); return; }
   if (!v('hMachine'))  { showAlert('Select a machine first.', 'bad'); return; }
