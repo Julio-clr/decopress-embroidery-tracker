@@ -407,13 +407,13 @@ function init() {
 // ═══════════════════════════════════════════════
 //  DATA LOADING
 // ═══════════════════════════════════════════════
-function loadData() {
-  if (scriptUrl) {
-    fetch(scriptUrl + '?action=getAll')
-      .then(r => r.json())
-      .then(data => { allData = Array.isArray(data) ? data : []; renderDept(); })
-      .catch(() => { allData = fromLocalStorage(); renderDept(); });
-  } else {
+async function loadData() {
+  try {
+    const resp = await fetch(scriptUrl + '?action=getAll');
+    const result = await resp.json();
+    allData = Array.isArray(result.data) ? result.data : (Array.isArray(result) ? result : []);
+    renderDept();
+  } catch(e) {
     allData = fromLocalStorage();
     renderDept();
   }

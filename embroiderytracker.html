@@ -1057,7 +1057,7 @@ function updateSummary() {
 // ═══════════════════════════════════════════════
 //  SAVE ALL
 // ═══════════════════════════════════════════════
-function saveAll() {
+async async function saveAll() {
   if (!jobs.length) { showAlert('No jobs to save.', 'bad'); return; }
   if (!v('hOperator')) { showAlert('Select an operator first.', 'bad'); return; }
   if (!v('hMachine'))  { showAlert('Select a machine first.', 'bad'); return; }
@@ -1067,22 +1067,20 @@ function saveAll() {
   localStorage.setItem(key, JSON.stringify([...existing, ...jobs]));
   sessionStorage.removeItem('emb_staging');
 
-  if (scriptUrl) {
-    const btn = document.getElementById('saveBtn');
-    btn.textContent = 'Saving…'; btn.disabled = true;
-    const encoded = encodeURIComponent(JSON.stringify(jobs));
-    const url = scriptUrl + '?action=saveJobs&data=' + encoded;
-    fetch(url)
-      .then(() => {
-        showAlert(`✅ ${jobs.length} job(s) saved to Google Sheets.`, 'ok');
-      }).catch(() => {
-        showAlert(`⚠ Sheet sync failed — ${jobs.length} job(s) saved locally.`, 'bad');
-      }).finally(() => {
-        btn.textContent = 'Save All Jobs'; btn.disabled = false;
-        jobs = []; renderTable(); updateSummary();
-      });
-  } else {
-    showAlert(`${jobs.length} job(s) saved locally. Configure Apps Script URL to sync to Sheets.`, 'ok');
+  const btn = document.getElementById('saveBtn');
+  btn.textContent = 'Saving…'; btn.disabled = true;
+  try {
+    const resp = await fetch(scriptUrl, {
+      method: 'POST',
+      body: JSON.stringify({ jobs })
+    });
+    const result = await resp.json();
+    if (!result.success) throw new Error(result.error);
+    showAlert('✅ ' + jobs.length + ' job(s) saved to Google Sheets.', 'ok');
+  } catch(e) {
+    showAlert('⚠ Sheet sync failed — check connection.', 'bad');
+  } finally {
+    btn.textContent = 'Save All Jobs'; btn.disabled = false;
     jobs = []; renderTable(); updateSummary();
   }
 }
