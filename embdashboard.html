@@ -322,13 +322,23 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
       <div class="op-name-lg" id="opDetailName">—</div>
       <div class="op-sub-lg"  id="opDetailSub">—</div>
 
-      <div class="detail-period">
-        <button class="dp-btn active" onclick="setOpPeriod('today',this)">Today</button>
-        <button class="dp-btn" onclick="setOpPeriod('yesterday',this)">Yesterday</button>
-        <button class="dp-btn" onclick="setOpPeriod('week',this)">This Week</button>
-        <button class="dp-btn" onclick="setOpPeriod('lastweek',this)">Last Week</button>
-        <button class="dp-btn" onclick="setOpPeriod('month',this)">This Month</button>
-        <button class="dp-btn" onclick="setOpPeriod('lastmonth',this)">Last Month</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+        <div class="detail-period" style="margin-bottom:0;">
+          <button class="dp-btn active" onclick="setOpPeriod('today',this)">Today</button>
+          <button class="dp-btn" onclick="setOpPeriod('yesterday',this)">Yesterday</button>
+          <button class="dp-btn" onclick="setOpPeriod('week',this)">This Week</button>
+          <button class="dp-btn" onclick="setOpPeriod('lastweek',this)">Last Week</button>
+          <button class="dp-btn" onclick="setOpPeriod('month',this)">This Month</button>
+          <button class="dp-btn" onclick="setOpPeriod('lastmonth',this)">Last Month</button>
+        </div>
+        <div class="pcshr-toggle">
+          <span>Pcs/Hr:</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="opAdjustedToggle" onchange="renderOpDetail()" />
+            <span class="toggle-slider"></span>
+          </label>
+          <span class="toggle-lbl" id="opToggleLbl">Raw</span>
+        </div>
       </div>
 
       <div class="cards-row" style="grid-template-columns:repeat(4,1fr);">
@@ -378,12 +388,12 @@ let opPeriod    = 'today';
 // ═══════════════════════════════════════════════
 //  PIN
 // ═══════════════════════════════════════════════
-function checkPin() {
+async function checkPin() {
   if (document.getElementById('pinInput').value === PIN) {
     document.getElementById('pinGate').style.display    = 'none';
     document.getElementById('mainContent').style.display = 'block';
-    document.getElementById('footer').style.display      = 'block';
-    init();
+    const footerEl = document.getElementById('footer'); if(footerEl) footerEl.style.display = 'block';
+    await init();
   } else {
     document.getElementById('pinErr').textContent = 'Incorrect PIN. Try again.';
     document.getElementById('pinInput').value = '';
@@ -503,7 +513,7 @@ function renderSummaryCards(data, adj) {
   const jobs  = data.length;
   const pcs   = prod.reduce((a,j)=>a+(parseInt(j.qty)||0),0);
   const rev   = prod.reduce((a,j)=>a+(parseFloat(j.revenue)||0),0);
-  const mins  = prod.reduce((a,j)=>a+(parseInt(j.elapsed)||0),0);
+  const mins  = prod.reduce((a,j)=>a+(parseInt(j.netElapsed||j.elapsed)||0),0);
 
   // For adjusted: subtract 50 mins per operator per day
   let adjMins = mins;
@@ -520,7 +530,7 @@ function renderSummaryCards(data, adj) {
   document.getElementById('cRev').textContent     = '$'+rev.toFixed(2);
   document.getElementById('cRevSub').textContent  = pcs>0?'$'+(rev/pcs).toFixed(2)+' avg/pc':'—';
   document.getElementById('cPcsHr').textContent   = pcsHr;
-  document.getElementById('cPcsHrSub').textContent= adj?'Break-adjusted':'Raw elapsed time';
+  document.getElementById('cPcsHrSub').textContent= adj?'Break-adjusted (incl. manual breaks)':'Net production time';
 }
 
 // ── OPERATOR TABLE
@@ -536,7 +546,7 @@ function renderOpTable(data, adj) {
     const jobs    = opJobs.length;
     const pcs     = prod.reduce((a,j)=>a+(parseInt(j.qty)||0),0);
     const rev     = prod.reduce((a,j)=>a+(parseFloat(j.revenue)||0),0);
-    const mins    = prod.reduce((a,j)=>a+(parseInt(j.elapsed)||0),0);
+    const mins    = prod.reduce((a,j)=>a+(parseInt(j.netElapsed||j.elapsed)||0),0);
 
     const opDays  = new Set(prod.map(j=>j.date)).size;
     const adjMins = Math.max(mins - opDays*BREAK_MINS, 1);
@@ -626,7 +636,7 @@ function renderLeadActivity(data) {
         <div class="lead-item">
           <div><strong>${j.jobNum}</strong> — ${j.jobName}</div>
           <div class="li-meta">${j.sampleType} · ${j.numColors} colors · Intended: ${j.intendedQty} pcs</div>
-          ${j.colors?`<div class="li-meta">${j.colors.map(c=>`${c.name}: ${c.spools} spools`).join(' · ')}</div>`:''}
+          ${j.colors ? `<div class="li-meta">${Array.isArray(j.colors) ? j.colors.map(c=>`${c.name}: ${c.spools} spools`).join(' · ') : j.colors}</div>` : ''}
         </div>`).join('')}
       ${samples.length>5?`<div style="font-size:11px;color:var(--muted);padding-top:4px;">+${samples.length-5} more</div>`:''}
     </div>
@@ -720,14 +730,17 @@ function setOpPeriod(p, btn) {
 }
 
 function renderOpDetail() {
-  const adj     = document.getElementById('adjustedToggle').checked;
+  const adjToggle = document.getElementById('opAdjustedToggle');
+  const adj     = adjToggle ? adjToggle.checked : document.getElementById('adjustedToggle').checked;
+  const opLbl   = document.getElementById('opToggleLbl');
+  if (opLbl) opLbl.textContent = adj ? 'Adjusted' : 'Raw';
   const opData  = filterByPeriod(allData.filter(j=>j.operator===opName), opPeriod);
   const prod    = opData.filter(j=>j.action==='prod'||!j.isShay);
 
   const jobs    = opData.length;
   const pcs     = prod.reduce((a,j)=>a+(parseInt(j.qty)||0),0);
   const rev     = prod.reduce((a,j)=>a+(parseFloat(j.revenue)||0),0);
-  const mins    = prod.reduce((a,j)=>a+(parseInt(j.elapsed)||0),0);
+  const mins    = prod.reduce((a,j)=>a+(parseInt(j.netElapsed||j.elapsed)||0),0);
   const opDays  = new Set(prod.map(j=>j.date)).size;
   const adjMins = Math.max(mins - opDays*BREAK_MINS, 1);
   const pcsHr   = mins>0?((pcs/(adj?adjMins:mins))*60).toFixed(1):'—';
@@ -759,7 +772,9 @@ function renderOpDetail() {
     const chip = j.isShay ? chipFor(j) : '';
     let meta='', rev2='';
     if (j.action==='prod'||!j.isShay) {
-      meta = `${j.machine} · ${j.startTime}→${j.stopTime} · ${fmtMin(j.elapsed)} · CO:${j.changeover}m · Runtime:${j.runtime}m`;
+      const netMins = j.netElapsed || j.elapsed;
+      const deductStr = j.deduct > 0 ? ` · −${j.deduct}m breaks` : '';
+      meta = `${j.machine} · ${j.startTime}→${j.stopTime} · ${fmtMin(netMins)} net${deductStr} · CO:${j.changeover}m · Runtime:${j.runtime}m`;
       rev2 = `<span style="font-weight:700;color:var(--green);">$${parseFloat(j.revenue||0).toFixed(2)}</span><div style="font-size:11px;color:var(--muted);">${j.qty} pcs</div>`;
     } else if (j.action==='sample') {
       meta = `${j.sampleType} · ${j.numColors} colors · Intended: ${j.intendedQty} pcs`;
