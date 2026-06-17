@@ -346,19 +346,20 @@ textarea { resize: vertical; min-height: 50px; }
 /* BUTTONS */
 .btn-add {
   width: 100%;
-  border: 1.5px dashed var(--accent);
-  background: none;
-  color: var(--accent);
+  border: none;
+  background: #16a34a;
+  color: #ffffff;
   border-radius: 6px;
-  padding: 9px;
+  padding: 10px;
   font-family: 'Inter', sans-serif;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.12s;
   margin-top: 4px;
+  box-shadow: 0 2px 6px rgba(22,163,74,0.25);
 }
-.btn-add:hover { background: #eff6ff; }
+.btn-add:hover { background: #15803d; }
 
 .btn-save {
   width: 100%;
@@ -462,18 +463,40 @@ textarea { resize: vertical; min-height: 50px; }
 
   <div id="alertBox" class="alert"></div>
 
-  <!-- SUMMARY CARDS -->
+  <!-- SUMMARY — WEEKLY -->
+  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;">This Week</div>
+  <div class="summary-row" style="margin-bottom:8px;">
+    <div class="sum-card highlight">
+      <div class="sum-label">Jobs</div>
+      <div class="sum-val" id="wJobs">0</div>
+    </div>
+    <div class="sum-card highlight">
+      <div class="sum-label">Pieces</div>
+      <div class="sum-val" id="wPcs">0</div>
+    </div>
+    <div class="sum-card highlight">
+      <div class="sum-label">Revenue</div>
+      <div class="sum-val" id="wRev">$0.00</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">Pcs / Hr</div>
+      <div class="sum-val" id="wPcsHr" style="color:var(--text);">—</div>
+    </div>
+  </div>
+
+  <!-- SUMMARY — DAILY -->
+  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;">Today</div>
   <div class="summary-row">
     <div class="sum-card highlight">
-      <div class="sum-label">Jobs Added</div>
+      <div class="sum-label">Jobs</div>
       <div class="sum-val" id="sJobs">0</div>
     </div>
     <div class="sum-card highlight">
-      <div class="sum-label">Total Pieces</div>
+      <div class="sum-label">Pieces</div>
       <div class="sum-val" id="sPcs">0</div>
     </div>
     <div class="sum-card highlight">
-      <div class="sum-label">Total Revenue</div>
+      <div class="sum-label">Revenue</div>
       <div class="sum-val" id="sRev">$0.00</div>
     </div>
     <div class="sum-card">
@@ -524,6 +547,50 @@ textarea { resize: vertical; min-height: 50px; }
           <div class="act-btn" id="ab-gprod" onclick="setAction('gprod')">
             <span class="act-icon">⚡</span>
             <span class="act-label">Production</span>
+          </div>
+        </div>
+
+        <!-- SHARED TIME FIELDS — shown for sample, co, edit -->
+        <div id="shayTimeFields" style="display:none;">
+          <div class="row c2" style="margin-bottom:10px;">
+            <div class="fg">
+              <label>Start Time <span class="req">*</span></label>
+              <div class="time-row">
+                <select id="fSSH">
+                  <option value="">Hr</option>
+                  <option>1</option><option>2</option><option>3</option><option>4</option>
+                  <option>5</option><option>6</option><option>7</option><option>8</option>
+                  <option>9</option><option>10</option><option>11</option><option>12</option>
+                </select>
+                <select id="fSSM">
+                  <option value="">Min</option>
+                  <option value="00">00</option><option value="05">05</option><option value="10">10</option>
+                  <option value="15">15</option><option value="20">20</option><option value="25">25</option>
+                  <option value="30">30</option><option value="35">35</option><option value="40">40</option>
+                  <option value="45">45</option><option value="50">50</option><option value="55">55</option>
+                </select>
+                <select id="fSSAP"><option value="AM">AM</option><option value="PM">PM</option></select>
+              </div>
+            </div>
+            <div class="fg">
+              <label>Stop Time <span class="req">*</span></label>
+              <div class="time-row">
+                <select id="fSEH">
+                  <option value="">Hr</option>
+                  <option>1</option><option>2</option><option>3</option><option>4</option>
+                  <option>5</option><option>6</option><option>7</option><option>8</option>
+                  <option>9</option><option>10</option><option>11</option><option>12</option>
+                </select>
+                <select id="fSEM">
+                  <option value="">Min</option>
+                  <option value="00">00</option><option value="05">05</option><option value="10">10</option>
+                  <option value="15">15</option><option value="20">20</option><option value="25">25</option>
+                  <option value="30">30</option><option value="35">35</option><option value="40">40</option>
+                  <option value="45">45</option><option value="50">50</option><option value="55">55</option>
+                </select>
+                <select id="fSEAP"><option value="AM">AM</option><option value="PM">PM</option></select>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -678,6 +745,26 @@ textarea { resize: vertical; min-height: 50px; }
           </div>
         </div>
 
+        <!-- BREAK DEDUCTIONS -->
+        <div class="fg" style="margin-top:4px;">
+          <label>Breaks During This Job</label>
+          <div style="background:#f8fafc;border:1px solid var(--border);border-radius:6px;padding:10px 14px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:4px;">
+            <label id="lbl-brk1" style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--text);text-transform:none;letter-spacing:0;cursor:pointer;">
+              <input type="checkbox" id="brk1" onchange="onBreakChange(1)" style="width:15px;height:15px;accent-color:var(--accent);border-radius:3px;" />
+              10 min break (9:00 AM)
+            </label>
+            <label id="lbl-brk2" style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--text);text-transform:none;letter-spacing:0;cursor:pointer;">
+              <input type="checkbox" id="brk2" onchange="onBreakChange(2)" style="width:15px;height:15px;accent-color:var(--accent);border-radius:3px;" />
+              30 min lunch (11:30 AM)
+            </label>
+            <label id="lbl-brk3" style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--text);text-transform:none;letter-spacing:0;cursor:pointer;">
+              <input type="checkbox" id="brk3" onchange="onBreakChange(3)" style="width:15px;height:15px;accent-color:var(--accent);border-radius:3px;" />
+              10 min break (1:30 PM)
+            </label>
+            <span id="brkDeductDisplay" style="font-size:12px;font-weight:600;color:var(--muted);margin-left:auto;"></span>
+          </div>
+        </div>
+
       </div>
       <!-- END PRODUCTION FIELDS -->
 
@@ -753,6 +840,7 @@ window.onload = function () {
   document.getElementById('hDate').textContent =
     now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
   try { const s = sessionStorage.getItem('emb_staging'); if (s) jobs = JSON.parse(s); } catch(e){}
+  lockUsedBreaks();
   renderTable();
   updateSummary();
 };
@@ -783,12 +871,14 @@ function setAction(action) {
   document.getElementById('panel-co').style.display      = action === 'co'     ? 'block' : 'none';
   document.getElementById('panel-edit').style.display    = action === 'edit'   ? 'block' : 'none';
   document.getElementById('regularFields').style.display = action === 'gprod'  ? 'block' : 'none';
+  document.getElementById('shayTimeFields').style.display = (action === 'sample' || action === 'co' || action === 'edit') ? 'block' : 'none';
 }
 
 function clearActionPanels() {
   ['sample','co','edit','gprod'].forEach(a => document.getElementById('ab-'+a).classList.remove('active'));
   ['panel-sample','panel-co','panel-edit'].forEach(id => document.getElementById(id).style.display = 'none');
   document.getElementById('regularFields').style.display = 'none';
+  document.getElementById('shayTimeFields').style.display = 'none';
 }
 
 // ═══════════════════════════════════════════════
@@ -815,6 +905,62 @@ function calcRevenue() {
   const qty   = parseFloat(v('fQty'))       || 0;
   const price = parseFloat(v('fUnitPrice')) || 0;
   document.getElementById('revDisplay').textContent = '$' + (qty * price).toFixed(2);
+}
+
+function getBreakDeduction() {
+  let deduct = 0;
+  if (document.getElementById('brk1')?.checked) deduct += 10;
+  if (document.getElementById('brk2')?.checked) deduct += 30;
+  if (document.getElementById('brk3')?.checked) deduct += 10;
+  return deduct;
+}
+
+function updateBreakDeduction() {
+  const deduct = getBreakDeduction();
+  const el = document.getElementById('brkDeductDisplay');
+  if (el) el.textContent = deduct > 0 ? '−' + deduct + ' min deducted' : '';
+}
+
+// Break lock system — each break can only be used once per day
+const BREAK_KEY = 'emb_breaks_used_';
+
+function getBreaksUsed() {
+  const today = new Date().toISOString().slice(0,10);
+  return JSON.parse(localStorage.getItem(BREAK_KEY + today) || '{}');
+}
+
+function saveBreaksUsed(used) {
+  const today = new Date().toISOString().slice(0,10);
+  localStorage.setItem(BREAK_KEY + today, JSON.stringify(used));
+}
+
+function onBreakChange(num) {
+  updateBreakDeduction();
+}
+
+function lockUsedBreaks() {
+  const used = getBreaksUsed();
+  [1,2,3].forEach(n => {
+    const el  = document.getElementById('brk' + n);
+    const lbl = document.getElementById('lbl-brk' + n);
+    if (used['brk'+n]) {
+      if (el)  { el.checked = true; el.disabled = true; }
+      if (lbl) { lbl.style.color = 'var(--muted)'; lbl.style.cursor = 'default'; lbl.title = 'Already used today'; }
+    } else {
+      if (el)  { el.disabled = false; }
+      if (lbl) { lbl.style.color = 'var(--text)'; lbl.style.cursor = 'pointer'; lbl.title = ''; }
+    }
+  });
+  updateBreakDeduction();
+}
+
+function markBreaksUsed() {
+  const used = getBreaksUsed();
+  if (document.getElementById('brk1')?.checked) used['brk1'] = true;
+  if (document.getElementById('brk2')?.checked) used['brk2'] = true;
+  if (document.getElementById('brk3')?.checked) used['brk3'] = true;
+  saveBreaksUsed(used);
+  lockUsedBreaks();
 }
 
 // ═══════════════════════════════════════════════
@@ -868,6 +1014,8 @@ function addJob() {
       const sType  = v('fSampleType');
       const iQty   = v('fIntendedQty');
       const nColV  = v('fNumColors');
+      if (!v('fSSH') || !v('fSSM')) { showAlert('Enter Start Time.', 'bad'); return; }
+      if (!v('fSEH') || !v('fSEM')) { showAlert('Enter Stop Time.', 'bad'); return; }
       if (!sType)  { showAlert('Select sample type.', 'bad'); return; }
       if (!iQty)   { showAlert('Enter intended order qty.', 'bad'); return; }
       if (!nColV)  { showAlert('Select number of colors.', 'bad'); return; }
@@ -882,23 +1030,39 @@ function addJob() {
         }
         colors.push({ name, spools: parseInt(spoolV) });
       }
-      job = { ...job, sampleType: sType, intendedQty: parseInt(iQty), numColors: n, colors };
+      job = { ...job,
+        startTime: `${v('fSSH')}:${v('fSSM')} ${v('fSSAP')}`,
+        stopTime:  `${v('fSEH')}:${v('fSEM')} ${v('fSEAP')}`,
+        elapsed: Math.max(toMins(v('fSEH'), v('fSEM'), v('fSEAP')) - toMins(v('fSSH'), v('fSSM'), v('fSSAP')), 0),
+        sampleType: sType, intendedQty: parseInt(iQty), numColors: n, colors };
     }
 
     else if (shayAction === 'co') {
       const coOp  = v('fCoOp');
       const coDur = v('fCoDur');
+      if (!v('fSSH') || !v('fSSM')) { showAlert('Enter Start Time.', 'bad'); return; }
+      if (!v('fSEH') || !v('fSEM')) { showAlert('Enter Stop Time.', 'bad'); return; }
       if (!coOp)  { showAlert('Select the operator you assisted.', 'bad'); return; }
       if (!coDur) { showAlert('Select duration for CO Assist.', 'bad'); return; }
-      job = { ...job, coOp, coDur: parseInt(coDur) };
+      job = { ...job,
+        startTime: `${v('fSSH')}:${v('fSSM')} ${v('fSSAP')}`,
+        stopTime:  `${v('fSEH')}:${v('fSEM')} ${v('fSEAP')}`,
+        elapsed: Math.max(toMins(v('fSEH'), v('fSEM'), v('fSEAP')) - toMins(v('fSSH'), v('fSSM'), v('fSSAP')), 0),
+        coOp, coDur: parseInt(coDur) };
     }
 
     else if (shayAction === 'edit') {
       const asset  = document.getElementById('fAssetCode').value.trim();
       const editDr = v('fEditDur');
+      if (!v('fSSH') || !v('fSSM')) { showAlert('Enter Start Time.', 'bad'); return; }
+      if (!v('fSEH') || !v('fSEM')) { showAlert('Enter Stop Time.', 'bad'); return; }
       if (!asset)  { showAlert('Enter the Codewolf Asset Code.', 'bad'); return; }
       if (!editDr) { showAlert('Enter duration for File Edit.', 'bad'); return; }
-      job = { ...job, assetCode: asset, editDur: parseInt(editDr) };
+      job = { ...job,
+        startTime: `${v('fSSH')}:${v('fSSM')} ${v('fSSAP')}`,
+        stopTime:  `${v('fSEH')}:${v('fSEM')} ${v('fSEAP')}`,
+        elapsed: Math.max(toMins(v('fSEH'), v('fSEM'), v('fSEAP')) - toMins(v('fSSH'), v('fSSM'), v('fSSAP')), 0),
+        assetCode: asset, editDur: parseInt(editDr) };
     }
 
     else if (shayAction === 'gprod') {
@@ -914,6 +1078,7 @@ function addJob() {
 
   jobs.push(job);
   sessionStorage.setItem('emb_staging', JSON.stringify(jobs));
+  markBreaksUsed();
   renderTable();
   updateSummary();
   resetForm();
@@ -937,14 +1102,20 @@ function buildProd() {
   const stopMins  = toMins(eH, eM, eAP);
   if (stopMins <= startMins) { showAlert('Stop time must be after start time.', 'bad'); return null; }
 
-  const elapsed = stopMins - startMins;
-  const revenue = parseFloat(qty) * parseFloat(price);
+  const elapsed   = stopMins - startMins;
+  const deduct    = getBreakDeduction();
+  const netElapsed = Math.max(elapsed - deduct, 1);
+  const revenue   = parseFloat(qty) * parseFloat(price);
+  const brk1 = document.getElementById('brk1')?.checked || false;
+  const brk2 = document.getElementById('brk2')?.checked || false;
+  const brk3 = document.getElementById('brk3')?.checked || false;
 
   return {
     qty: parseInt(qty), unitPrice: parseFloat(price), revenue,
     startTime: `${sH}:${sM} ${sAP}`, stopTime: `${eH}:${eM} ${eAP}`,
-    startMins, stopMins, elapsed,
-    runtime: parseInt(runtime), changeover: parseInt(co)
+    startMins, stopMins, elapsed, deduct, netElapsed,
+    runtime: parseInt(runtime), changeover: parseInt(co),
+    brk1, brk2, brk3
   };
 }
 
@@ -964,7 +1135,8 @@ function renderTable() {
 
     if (j.action === 'prod' || !j.isShay) {
       desc = `<div class="job-name">${j.jobName} ${chip}</div>`;
-      meta = `<div class="job-meta">${j.machine} · ${j.startTime} → ${j.stopTime} · ${fmtMin(j.elapsed)} · CO: ${j.changeover}m · Runtime: ${j.runtime}m</div>`;
+      const deductStr = j.deduct > 0 ? ` · −${j.deduct}m breaks` : '';
+      meta = `<div class="job-meta">${j.machine} · ${j.startTime} → ${j.stopTime} · ${fmtMin(j.netElapsed || j.elapsed)} net${deductStr} · CO: ${j.changeover}m · Runtime: ${j.runtime}m</div>`;
       rev  = `<span class="rev-val">$${j.revenue.toFixed(2)}</span><div style="font-size:11px;color:var(--muted);">${j.qty} pcs</div>`;
     } else if (j.action === 'sample') {
       desc = `<div class="job-name">${j.jobName} ${chip}</div>`;
@@ -983,11 +1155,18 @@ function renderTable() {
 
     const noteRow = j.notes ? `<div style="font-size:11px;color:var(--muted);font-style:italic;margin-top:2px;">${j.notes}</div>` : '';
 
+    const statusBadge = j.saved
+      ? `<span style="background:#dcfce7;color:#16a34a;font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;white-space:nowrap;">✓ Saved</span>`
+      : `<span style="background:#fef3c7;color:#d97706;font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;white-space:nowrap;">● Unsaved</span>`;
+
     return `<tr>
       <td><span class="job-num">${j.jobNum}</span></td>
       <td>${desc}${meta}${noteRow}</td>
       <td>${rev}</td>
-      <td><button class="del-btn" onclick="removeJob(${j.id})" title="Remove">✕</button></td>
+      <td style="text-align:right;">
+        ${statusBadge}
+        <button class="del-btn" onclick="removeJob(${j.id})" title="Remove">✕</button>
+      </td>
     </tr>`;
   }).join('');
 
@@ -1024,17 +1203,54 @@ function removeJob(id) {
 // ═══════════════════════════════════════════════
 //  SUMMARY
 // ═══════════════════════════════════════════════
+function getWeekStart() {
+  const d = new Date(), day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(d.getFullYear(), d.getMonth(), diff).toISOString().slice(0,10);
+}
+
+function getAllWeekJobs() {
+  const weekStart = getWeekStart();
+  const today = new Date().toISOString().slice(0,10);
+  const allJobs = [];
+  for (let key in localStorage) {
+    if (key.startsWith('emb_jobs_')) {
+      const date = key.replace('emb_jobs_','');
+      if (date >= weekStart && date <= today) {
+        try { allJobs.push(...JSON.parse(localStorage.getItem(key))); } catch(e){}
+      }
+    }
+  }
+  return allJobs;
+}
+
 function updateSummary() {
-  const prodJobs = jobs.filter(j => j.action === 'prod' || !j.isShay);
+  // Include saved jobs from localStorage for today so metrics persist after Save All
+  const today = new Date().toISOString().slice(0,10);
+  const savedToday = JSON.parse(localStorage.getItem('emb_jobs_' + today) || '[]');
+  const allToday = [...savedToday, ...jobs.filter(j => !j.saved)];
+  const prodJobs = allToday.filter(j => j.action === 'prod' || !j.isShay);
   const totalPcs = prodJobs.reduce((a,j) => a + (j.qty || 0), 0);
   const totalRev = prodJobs.reduce((a,j) => a + (j.revenue || 0), 0);
-  const totalMin = prodJobs.reduce((a,j) => a + (j.elapsed || 0), 0);
+  const totalMin = prodJobs.reduce((a,j) => a + (j.netElapsed || j.elapsed || 0), 0);
   const pcsHr    = totalMin > 0 ? ((totalPcs / totalMin) * 60).toFixed(1) : '—';
 
-  document.getElementById('sJobs').textContent  = jobs.length;
+  document.getElementById('sJobs').textContent  = allToday.length;
   document.getElementById('sPcs').textContent   = totalPcs;
   document.getElementById('sRev').textContent   = '$' + totalRev.toFixed(2);
   document.getElementById('sPcsHr').textContent = pcsHr;
+
+  // Weekly metrics
+  const weekJobs = getAllWeekJobs();
+  const wProd    = weekJobs.filter(j => j.action === 'prod' || !j.isShay);
+  const wPcs     = wProd.reduce((a,j) => a + (parseInt(j.qty)||0), 0);
+  const wRev     = wProd.reduce((a,j) => a + (parseFloat(j.revenue)||0), 0);
+  const wMin     = wProd.reduce((a,j) => a + (parseInt(j.netElapsed||j.elapsed)||0), 0);
+  const wPcsHr   = wMin > 0 ? ((wPcs / wMin) * 60).toFixed(1) : '—';
+  document.getElementById('wJobs').textContent  = weekJobs.length;
+  document.getElementById('wPcs').textContent   = wPcs;
+  document.getElementById('wRev').textContent   = '$' + wRev.toFixed(2);
+  document.getElementById('wPcsHr').textContent = wPcsHr;
 
   const machine = v('hMachine');
   const target  = MACHINE_TARGETS[machine] || 0;
@@ -1053,13 +1269,14 @@ function updateSummary() {
 //  SAVE ALL
 // ═══════════════════════════════════════════════
 async function saveAll() {
-  if (!jobs.length) { showAlert('No jobs to save.', 'bad'); return; }
+  const unsaved = jobs.filter(j => !j.saved);
+  if (!unsaved.length) { showAlert('No new jobs to save.', 'bad'); return; }
   if (!v('hOperator')) { showAlert('Select an operator first.', 'bad'); return; }
   if (!v('hMachine'))  { showAlert('Select a machine first.', 'bad'); return; }
 
   const key = 'emb_jobs_' + new Date().toISOString().slice(0,10);
   const existing = JSON.parse(localStorage.getItem(key) || '[]');
-  localStorage.setItem(key, JSON.stringify([...existing, ...jobs]));
+  localStorage.setItem(key, JSON.stringify([...existing, ...unsaved]));
   sessionStorage.removeItem('emb_staging');
 
   const btn = document.getElementById('saveBtn');
@@ -1067,16 +1284,17 @@ async function saveAll() {
   try {
     const resp = await fetch(scriptUrl, {
       method: 'POST',
-      body: JSON.stringify({ jobs })
+      body: JSON.stringify({ jobs: unsaved })
     });
     const result = await resp.json();
     if (!result.success) throw new Error(result.error);
-    showAlert('✅ ' + jobs.length + ' job(s) saved to Google Sheets.', 'ok');
+    unsaved.forEach(j => j.saved = true);
+    showAlert('✅ ' + unsaved.length + ' job(s) saved to Google Sheets.', 'ok');
+    renderTable();
   } catch(e) {
     showAlert('⚠ Sheet sync failed — check connection.', 'bad');
   } finally {
     btn.textContent = 'Save All Jobs'; btn.disabled = false;
-    jobs = []; renderTable(); updateSummary();
   }
 }
 
@@ -1086,11 +1304,16 @@ async function saveAll() {
 function resetForm() {
   ['fJobNum','fJobName','fQty','fUnitPrice','fRuntime','fNotes','fIntendedQty','fAssetCode','fEditDur']
     .forEach(id => { const el = document.getElementById(id); if (el) { el.value = ''; el.classList.remove('err'); } });
-  ['fSH','fSM','fEH','fEM','fSampleType','fNumColors','fCoOp','fCoDur','fChangeover']
+  ['fSH','fSM','fEH','fEM','fSampleType','fNumColors','fCoOp','fCoDur','fChangeover',
+   'fSSH','fSSM','fSEH','fSEM']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const ssap = document.getElementById('fSSAP'); if(ssap) ssap.value = 'AM';
+  const seap = document.getElementById('fSEAP'); if(seap) seap.value = 'AM';
   document.getElementById('fSAP').value = 'AM';
   document.getElementById('fEAP').value = 'AM';
   document.getElementById('revDisplay').textContent = '$0.00';
+  lockUsedBreaks(); // restore locked state — don't uncheck breaks already used today
+  const brkEl = document.getElementById('brkDeductDisplay'); if(brkEl) brkEl.textContent = '';
   document.getElementById('colorContainer').innerHTML = '';
   if (v('hOperator') === 'Shay Chavez') { shayAction = ''; clearActionPanels(); }
 }
