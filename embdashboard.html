@@ -821,8 +821,11 @@ function renderOpDetail() {
     const dayHours = calcHoursWorked(dayProd);
     const dayShiftMins = dayHours.totalMins;
     const dayUnaccounted = Math.max(dayShiftMins - dayRuntime - dayCO - dayBreaks, 0);
-    const perf = dayShiftMins > 0 ? Math.round((dayPcs / DAILY_TARGET) * 100) : 0;
+    const perf = Math.round((dayPcs / DAILY_TARGET) * 100);
     const perfColor = perf >= 100 ? 'var(--green)' : perf >= 75 ? 'var(--amber)' : 'var(--red)';
+
+    // Detect conflicting times on same machine
+    const conflicts = detectConflicts(dayProd);
 
     // Day label
     const dayLabel = new Date(date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
@@ -836,11 +839,13 @@ function renderOpDetail() {
         <div style="font-size:12px;font-weight:700;color:var(--text);">${dayLabel}</div>
         <div style="display:flex;gap:14px;align-items:center;font-size:11px;color:var(--muted);">
           <span>${dayJobs.length} jobs</span>
-          <span><b style="color:var(--text);">${dayPcs}</b> pcs</span>
+          <span><b style="color:var(--text);">${dayPcs}/${DAILY_TARGET}</b> pcs</span>
           <span><b style="color:var(--text);">${dayHours.label}</b> worked</span>
           ${dayDmg > 0 ? `<span style="color:var(--amber);font-weight:600;">⚠ ${dayDmg} dmg</span>` : '<span>0 dmg</span>'}
+          ${(() => { const bl = getBreakLogForDate(date, opData); const over = bl.filter(b => (b.over||0) > 3); return over.length > 0 ? `<span style="background:#fff7ed;color:#f97316;font-weight:700;padding:2px 7px;border-radius:10px;">⏰ ${over.length} break over</span>` : ''; })()}
           <span style="font-weight:700;color:${perfColor};">${perf}% of target</span>
           <span style="font-weight:700;color:var(--green);">$${dayRev.toFixed(2)}</span>
+          ${conflicts.length > 0 ? `<span style="background:#fee2e2;color:var(--red);font-weight:700;padding:2px 7px;border-radius:10px;">⚠ ${conflicts.length} time conflict${conflicts.length>1?'s':''}</span>` : ''}
         </div>
       </div>
 
@@ -860,8 +865,16 @@ function renderOpDetail() {
             const jPcsHr = netM > 0 ? ((parseInt(j.qty)||0)/netM*60).toFixed(1) : '—';
             const deductStr = parseInt(j.deduct) > 0 ? ` · −${j.deduct}m breaks` : '';
             const jDmg = parseInt(j.damages)||0;
-            const jPerf = dayPcs > 0 ? Math.round((dayPcs / DAILY_TARGET) * 100) : 0;
+            // Cumulative pcs up to and including this job (sorted by start time)
+            const sortedForCumul = [...dayProd].sort((a,b) => (parseTimeStr(a.startTime)||0) - (parseTimeStr(b.startTime)||0));
+            let cumPcs = 0;
+            for (const dj of sortedForCumul) {
+              cumPcs += parseInt(dj.qty)||0;
+              if (dj === j || (dj.jobNum === j.jobNum && dj.startTime === j.startTime)) break;
+            }
+            const jPerf = Math.round((cumPcs / DAILY_TARGET) * 100);
             const jPerfColor = jPerf >= 100 ? 'var(--green)' : jPerf >= 75 ? 'var(--amber)' : 'var(--red)';
+            const isConflict = conflicts.some(c => c.jobNum === j.jobNum && c.startTime === j.startTime);
             let meta='', rev2='';
             if (j.action==='prod'||!j.isShay) {
               meta = `${j.machine} · ${j.startTime}→${j.stopTime}${deductStr} · CO:${j.changeover}m · Runtime:${j.runtime}m`;
@@ -879,7 +892,7 @@ function renderOpDetail() {
             return `<tr>
               <td><span class="job-num-cell">${j.jobNum}</span></td>
               <td>
-                <div style="font-weight:500;">${j.jobName} ${chip}</div>
+                <div style="font-weight:500;">${j.jobName} ${chip}${isConflict ? '<span style="background:#fee2e2;color:var(--red);font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;margin-left:6px;">⚠ Time Conflict</span>' : ''}</div>
                 <div style="font-size:11px;color:var(--muted);margin-top:1px;">${meta}</div>
                 ${j.notes?`<div style="font-size:11px;color:var(--muted);font-style:italic;margin-top:1px;">${j.notes}</div>`:''}
               </td>
@@ -897,6 +910,38 @@ function renderOpDetail() {
   });
 
   logEl.innerHTML = html || '<div class="empty">No jobs for selected period.</div>';
+}
+
+// ── GET BREAK LOG FOR A DATE from job data
+function getBreakLogForDate(date, allOpData) {
+  // Break log is stored in localStorage on the tracker device
+  // On dashboard we infer from the saved jobs' break data
+  // For now return empty — break overtime shows when data includes it
+  return [];
+}
+
+// ── DETECT TIME CONFLICTS on same machine same day
+function detectConflicts(dayProd) {
+  const conflicts = [];
+  const sorted = [...dayProd].sort((a,b) => (parseTimeStr(a.startTime)||0) - (parseTimeStr(b.startTime)||0));
+  for (let i = 0; i < sorted.length; i++) {
+    for (let k = i+1; k < sorted.length; k++) {
+      if (sorted[i].machine !== sorted[k].machine) continue;
+      const aStart = parseTimeStr(sorted[i].startTime);
+      const aEnd   = parseTimeStr(sorted[i].stopTime);
+      const bStart = parseTimeStr(sorted[k].startTime);
+      const bEnd   = parseTimeStr(sorted[k].stopTime);
+      if (aStart===null||aEnd===null||bStart===null||bEnd===null) continue;
+      // Overlap: one starts before the other ends
+      if (bStart < aEnd && bEnd > aStart) {
+        if (!conflicts.find(c => c.jobNum === sorted[i].jobNum && c.startTime === sorted[i].startTime))
+          conflicts.push({ jobNum: sorted[i].jobNum, startTime: sorted[i].startTime });
+        if (!conflicts.find(c => c.jobNum === sorted[k].jobNum && c.startTime === sorted[k].startTime))
+          conflicts.push({ jobNum: sorted[k].jobNum, startTime: sorted[k].startTime });
+      }
+    }
+  }
+  return conflicts;
 }
 
 // ── TIMELINE BAR: clock-style from first start to last stop
@@ -918,6 +963,10 @@ function buildTimelineBar(dayProd, date) {
   });
 
   if (!jobBlocks.length || shiftStart === Infinity) return '';
+
+  // Always start timeline at 8:00 AM
+  const SHIFT_START = 8 * 60; // 8:00 AM in minutes
+  shiftStart = Math.min(shiftStart, SHIFT_START);
 
   const totalSpan = shiftEnd - shiftStart;
   if (totalSpan <= 0) return '';
@@ -945,8 +994,9 @@ function buildTimelineBar(dayProd, date) {
     const w = ((blk.end - blk.start) / totalSpan * 100).toFixed(1);
     const colors = ['#2563eb','#0891b2','#7c3aed','#059669','#dc2626','#d97706'];
     const c = colors[i % colors.length];
+    const isLast = i === sorted.length - 1;
     segments += `<div class="tl-seg-wrap" style="width:${w}%;">
-      <div style="width:100%;background:#2563eb;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+      <div style="width:100%;background:#2563eb;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;${!isLast ? 'border-right:3px solid #1a2e4a;' : ''}">
         <span style="font-size:10px;font-weight:700;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 3px;">${blk.label}</span>
       </div>
       <div class="tl-tooltip">Job ${blk.label}<br>${fmt12(blk.start)} → ${fmt12(blk.end)}<br>${fmtMin(blk.end-blk.start)}</div>
@@ -961,7 +1011,7 @@ function buildTimelineBar(dayProd, date) {
 
   return `<div style="padding:8px 16px 10px;">
     <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:3px;">
-      <span>${fmt12(shiftStart)}</span>
+      <span>${fmt12(shiftStart)} ${shiftStart <= SHIFT_START ? '(shift start)' : ''}</span>
       <span style="font-size:10px;color:var(--muted);">Shift Timeline</span>
       <span>${fmt12(shiftEnd)}</span>
     </div>
