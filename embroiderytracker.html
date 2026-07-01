@@ -1984,6 +1984,13 @@ function renderTimeline() {
   })).filter(b => b.start !== null && b.end !== null && !isNaN(b.start) && !isNaN(b.end) && b.end > b.start)
      .sort((a,b) => a.start - b.start);
 
+  console.log('TIMELINE DEBUG:', {
+    prodJobsCount: prodJobs.length,
+    prodJobsSample: prodJobs.map(j => ({jobNum: j.jobNum, action: j.action, isShay: j.isShay, startTime: j.startTime, stopTime: j.stopTime, startMins: j.startMins, stopMins: j.stopMins})),
+    blocksCount: blocks.length,
+    blocks: blocks
+  });
+
   // Axis ALWAYS spans the full shift window; expand if jobs/breaks fall outside
   let axisStart = shiftStartMins;
   let axisEnd   = shiftEndMins;
