@@ -569,7 +569,7 @@ textarea { resize: vertical; min-height: 50px; }
       </div>
     </div>
     <div class="tl-body">
-      <div id="tlContent"><div class="tl-empty">No jobs logged yet — timeline updates as you add jobs.</div></div>
+      <div id="tlContent"></div>
     </div>
   </div>
 
@@ -913,7 +913,6 @@ const MACHINE_TARGETS = {
 // ═══════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════
-const SCRIPT_KEY = 'emb_script_url';
 let scriptUrl = 'https://script.google.com/macros/s/AKfycbwEr6fxFVmtdifC11t0twtLgVpnckpVDbqKg-y1hqcMdLUgWuPPNNlZBLJ1dYovVlioSg/exec';
 let jobs = [];
 let shayAction = '';
@@ -1165,11 +1164,12 @@ window.onload = async function () {
     now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
   try { const s = sessionStorage.getItem('emb_staging'); if (s) jobs = JSON.parse(s); } catch(e){}
   initTimePickers();
-  await loadConfig();
+  renderTimeline();     // show shift bar immediately with hardcoded defaults
+  await loadConfig();   // then load CONFIG (operators/machines/placements/shift schedule)
   updateBreakBtn();
   renderTable();
   updateSummary();
-  renderTimeline();
+  renderTimeline();     // re-render with CONFIG shift window
 };
 
 // ═══════════════════════════════════════════════
@@ -1375,7 +1375,7 @@ function logBreak(brkId) {
   updateBreakBtn();
   renderTimeline();
   updateSummary();
-  showAlert(`🎉 You've earned it! ${def.label} started at ${fmt12(startMins)} — see you in ${def.duration} min!`, 'ok');
+  showAlert(`You've earned it! ${def.label} started at ${fmt12(startMins)} - see you in ${def.duration} min!`, 'ok');
 }
 
 function getBreakColor(actualDuration, expectedDuration) {
@@ -1430,13 +1430,13 @@ function endBreak() {
   // Friendly messages
   let msg;
   if (over <= 3) {
-    msg = "💪 Welcome back! Let's get it!";
+    msg = "Welcome back! Let's get it!";
   } else if (over <= 7) {
-    msg = `Almost on time! Just ${over}min over — let's get back to it. 💪`;
+    msg = `Almost on time! Just ${over}min over - let's get back to it.`;
   } else if (over <= 15) {
-    msg = `Hey, ${over}min over today — let's make it up! 💪`;
+    msg = `Hey, ${over}min over today - let's make it up!`;
   } else {
-    msg = `Big break today! ${over}min over — time to crush it. 💪`;
+    msg = `Big break today! ${over}min over - time to crush it.`;
   }
   showAlert(msg, 'ok');
 }
@@ -1453,9 +1453,6 @@ function getJobBreakDeduction(startMins, stopMins) {
   }, 0);
 }
 
-// Legacy — not used anymore but keep to avoid errors
-function lockUsedBreaks() {}
-function markBreaksUsed() {}
 
 // ═══════════════════════════════════════════════
 //  TIME HELPERS
@@ -1839,18 +1836,17 @@ async function saveAll() {
 // ═══════════════════════════════════════════════
 //  SHIFT TIMELINE
 // ═══════════════════════════════════════════════
-const JOB_COLORS = ['#2563eb','#0891b2','#7c3aed','#059669','#dc2626','#d97706','#0284c7','#9333ea'];
-// Shift schedule — loaded from CONFIG, keyed by day name
-// Default fallback if CONFIG not loaded
-const DEFAULT_SHIFT = { start: 8 * 60 + 30, end: 16 * 60 + 30 }; // 8:30 AM – 4:30 PM
+// Shift schedule — hardcoded defaults, overwritten by CONFIG when loaded
+// Default: Mon-Fri 8:30 AM - 4:30 PM, Sat 5:00 AM - 1:00 PM
+const DEFAULT_SHIFT = { start: 8 * 60, end: 16 * 60 + 30 };
 let shiftSchedule = {
-  Monday:    { start: 8*60+30, end: 16*60+30 },
-  Tuesday:   { start: 8*60+30, end: 16*60+30 },
-  Wednesday: { start: 8*60+30, end: 16*60+30 },
-  Thursday:  { start: 8*60+30, end: 16*60+30 },
-  Friday:    { start: 8*60+30, end: 16*60+30 },
-  Saturday:  { start: 5*60,    end: 13*60    },
-  Sunday:    { start: 8*60+30, end: 16*60+30 },
+  Monday:    { start: 8*60, end: 16*60+30 },
+  Tuesday:   { start: 8*60, end: 16*60+30 },
+  Wednesday: { start: 8*60, end: 16*60+30 },
+  Thursday:  { start: 8*60, end: 16*60+30 },
+  Friday:    { start: 8*60, end: 16*60+30 },
+  Saturday:  { start: 5*60, end: 13*60    },
+  Sunday:    { start: 8*60, end: 16*60+30 },
 };
 
 function getTodayShift() {
@@ -1900,198 +1896,145 @@ function renderTimeline() {
 
   const el = document.getElementById('tlContent');
   const subEl = document.getElementById('tlSub');
+  if (!el) return;
 
-  // Check for active (ongoing) break
   const activeBrk = getActiveBreak();
+  const breakLog  = getBreakLog();
 
-  if (!prodJobs.length && !activeBrk) {
-    el.innerHTML = '<div class="tl-empty">No jobs logged yet — timeline updates as you add jobs.</div>';
-    subEl.textContent = 'Add jobs to see your shift timeline';
-    return;
-  }
-
-  const todayShift = getTodayShift();
+  // Shift window (from CONFIG or hardcoded default)
+  const todayShift     = getTodayShift();
   const shiftStartMins = todayShift.start;
   const shiftEndMins   = todayShift.end;
-  const now = new Date();
-  const nowMins = now.getHours() * 60 + now.getMinutes();
-  const clampedNow = Math.min(nowMins, shiftEndMins);
+  const now      = new Date();
+  const nowMins  = now.getHours() * 60 + now.getMinutes();
+  const clampedNow = Math.min(Math.max(nowMins, shiftStartMins), shiftEndMins);
 
   // Build job blocks
-  const blocks = prodJobs.map((j, i) => ({
+  const blocks = prodJobs.map(j => ({
     start: parseTimeStr(j.startTime),
     end:   parseTimeStr(j.stopTime),
     label: j.jobNum,
-    name:  j.jobName,
-    color: '#2563eb',
-    co:    parseInt(j.changeover)||0,
-    deduct: parseInt(j.deduct)||0
+    co:    parseInt(j.changeover) || 0,
+    deduct: parseInt(j.deduct) || 0
   })).filter(b => b.start !== null && b.end !== null && b.end > b.start)
      .sort((a,b) => a.start - b.start);
 
-  // If no job blocks but there's an active or logged break — still show timeline
-  const breakLog2 = getBreakLog();
-  const allBreaks = [...breakLog2, ...(activeBrk ? [{ startMins: activeBrk.startMins, endMins: clampedNow }] : [])];
-
-  if (!blocks.length && !allBreaks.length) {
-    el.innerHTML = '<div class="tl-empty">Enter start and stop times to see the timeline.</div>';
-    return;
-  }
-
-  // Calculate axis bounds
-  let firstStart = blocks.length ? blocks[0].start : clampedNow;
-  let lastEnd    = blocks.length ? blocks[blocks.length-1].end : clampedNow;
-
-  // Expand axis to include breaks
-  allBreaks.forEach(b => {
-    if (b.startMins < firstStart) firstStart = b.startMins;
-    if (b.endMins   > lastEnd)    lastEnd    = b.endMins;
+  // Axis ALWAYS spans the full shift window; expand if jobs/breaks fall outside
+  let axisStart = shiftStartMins;
+  let axisEnd   = shiftEndMins;
+  blocks.forEach(b => {
+    if (b.start < axisStart) axisStart = b.start;
+    if (b.end   > axisEnd)   axisEnd   = b.end;
   });
-
-  const axisStart  = Math.min(firstStart, shiftStartMins);
-  const axisEnd    = Math.max(lastEnd, clampedNow);
-  const span       = axisEnd - axisStart;
-
-  if (span <= 0) return;
-
-  const pct = mins => ((mins / span) * 100).toFixed(2) + '%';
-
-  // Build segments
-  let segs = '';
-  let cursor = axisStart;
-
-  blocks.forEach((blk, i) => {
-    const coMins  = blk.co || 0;
-    const coStart = blk.start - coMins;
-
-    // Gap before changeover
-    if (coStart > cursor) {
-      const gw = ((coStart - cursor) / span * 100).toFixed(2);
-      segs += `<div class="tl-seg gap-seg" style="width:${gw}%;" title="Gap · ${fmtMin(coStart-cursor)}"></div>`;
-    }
-
-    // Changeover block (dark navy) — before the job
-    if (coMins > 0 && coStart >= axisStart) {
-      const cw = (coMins / span * 100).toFixed(2);
-      segs += `<div class="tl-seg" style="width:${cw}%;background:#1a2e4a;" title="Changeover · Job ${blk.label} · ${coMins}min"><span style="font-size:9px;color:rgba(255,255,255,0.7);">CO</span></div>`;
-    }
-
-    // Job block — all blue
-    const w = ((blk.end - blk.start) / span * 100).toFixed(2);
-    segs += `<div class="tl-seg" style="width:${w}%;background:#2563eb;" title="Job ${blk.label}: ${fmt12(blk.start)}–${fmt12(blk.end)} · ${fmtMin(blk.end-blk.start)}"><span>${blk.label}</span></div>`;
-    cursor = blk.end;
+  breakLog.forEach(b => {
+    if (b.startMins < axisStart) axisStart = b.startMins;
+    if (b.endMins   > axisEnd)   axisEnd   = b.endMins;
   });
+  if (activeBrk && activeBrk.startMins < axisStart) axisStart = activeBrk.startMins;
 
-  // Insert ALL logged breaks and active break in timeline order
-  const breakLog = getBreakLog();
+  const span = axisEnd - axisStart;
+  if (span <= 0) { el.innerHTML = '<div class="tl-empty">Shift window not set.</div>'; return; }
 
-  // Merge all events: jobs + completed breaks + active break
-  // and sort everything by start time to render in order
-  const allEvents = [
-    ...blocks.map(b => ({ type: 'job', start: b.start, end: b.end, blk: b })),
-    ...breakLog.map(b => ({ type: 'break', start: b.startMins, end: b.endMins, brk: b })),
-    ...(activeBrk ? [{ type: 'active', start: activeBrk.startMins, end: clampedNow, brk: activeBrk }] : [])
+  // Build all events sorted by time
+  const events = [
+    ...blocks.map(b => ({ type:'job', start:b.start, end:b.end, blk:b })),
+    ...breakLog.map(b => ({ type:'break', start:b.startMins, end:b.endMins, brk:b })),
+    ...(activeBrk ? [{ type:'active', start:activeBrk.startMins, end:clampedNow, brk:activeBrk }] : [])
   ].sort((a,b) => a.start - b.start);
 
-  // Reset segs and cursor — rebuild from sorted events
-  segs = '';
-  cursor = axisStart;
+  const wpct = m => (m / span * 100).toFixed(2);
 
-  allEvents.forEach((evt, i) => {
-    // Gap before this event
-    if (evt.start > cursor) {
-      const gw = ((evt.start - cursor) / span * 100).toFixed(2);
-      segs += `<div class="tl-seg gap-seg" style="width:${gw}%;" title="Gap · ${fmtMin(evt.start-cursor)}"></div>`;
-    }
+  let segs = '';
+  let cursor = axisStart;
+  const jobEvents = events.filter(e => e.type === 'job');
+  let jobsSeen = 0;
 
+  events.forEach(evt => {
     if (evt.type === 'job') {
       const blk = evt.blk;
-      // CO block before job
-      const coMins = blk.co || 0;
-      if (coMins > 0) {
-        const coStartActual = blk.start - coMins;
-        if (coStartActual >= cursor && coStartActual >= axisStart) {
-          // If we haven't already passed changeover start
-          const cw = (coMins / span * 100).toFixed(2);
-          segs += `<div class="tl-seg" style="width:${cw}%;background:#1a2e4a;" title="Changeover · Job ${blk.label} · ${coMins}min"><span style="font-size:9px;color:rgba(255,255,255,0.7);">CO</span></div>`;
-        }
+      const coMins  = blk.co || 0;
+      const coStart = blk.start - coMins;
+
+      // gap before changeover/job
+      const segStart = coMins > 0 ? coStart : blk.start;
+      if (segStart > cursor) {
+        segs += `<div class="tl-seg gap-seg" style="width:${wpct(segStart-cursor)}%;" title="Gap - ${fmtMin(segStart-cursor)}"></div>`;
+        cursor = segStart;
       }
-      const w = ((blk.end - blk.start) / span * 100).toFixed(2);
-      const isLast = !allEvents.slice(i+1).some(e => e.type === 'job');
-      segs += `<div class="tl-seg" style="width:${w}%;background:#2563eb;${!isLast ? 'border-right:3px solid #1a2e4a;' : ''}" title="Job ${blk.label}: ${fmt12(blk.start)}–${fmt12(blk.end)} · ${fmtMin(blk.end-blk.start)}"><span>${blk.label}</span></div>`;
+      // changeover block (dark navy) before job
+      if (coMins > 0) {
+        segs += `<div class="tl-seg" style="width:${wpct(coMins)}%;background:#1a2e4a;" title="Changeover - Job ${blk.label} - ${coMins}min"><span style="font-size:9px;color:rgba(255,255,255,0.7);">CO</span></div>`;
+        cursor += coMins;
+      }
+      // job block (blue) with 3px separator unless last job
+      jobsSeen++;
+      const isLast = jobsSeen === jobEvents.length;
+      segs += `<div class="tl-seg" style="width:${wpct(blk.end-blk.start)}%;background:#2563eb;${!isLast ? 'border-right:3px solid #0f172a;' : ''}" title="Job ${blk.label}: ${fmt12(blk.start)}-${fmt12(blk.end)} - ${fmtMin(blk.end-blk.start)}"><span>${blk.label}</span></div>`;
       cursor = blk.end;
 
     } else if (evt.type === 'break') {
       const b = evt.brk;
+      if (b.startMins > cursor) {
+        segs += `<div class="tl-seg gap-seg" style="width:${wpct(b.startMins-cursor)}%;"></div>`;
+        cursor = b.startMins;
+      }
       const bColor = b.color || '#f59e0b';
-      const overNote = b.over > 3 ? ` · ${b.over}min over` : '';
-      const bw = Math.max(((b.endMins - b.startMins) / span * 100), 0.5).toFixed(2);
-      segs += `<div class="tl-seg" style="width:${bw}%;background:${bColor};" title="${b.label} · ${b.startTime}–${b.stopTime} · ${b.duration}min${overNote}"><span style="font-size:10px;font-weight:700;color:#fff;">⏸${b.over > 3 ? ' +'+b.over : ''}</span></div>`;
+      segs += `<div class="tl-seg" style="width:${wpct(Math.max(b.endMins-b.startMins,1))}%;background:${bColor};" title="${b.label} - ${b.startTime} to ${b.stopTime} - ${b.duration}min"><span style="font-size:10px;font-weight:700;color:#fff;">B</span></div>`;
       cursor = b.endMins;
 
     } else if (evt.type === 'active') {
       const b = evt.brk;
+      if (b.startMins > cursor) {
+        segs += `<div class="tl-seg gap-seg" style="width:${wpct(b.startMins-cursor)}%;"></div>`;
+        cursor = b.startMins;
+      }
       const elapsed = Math.round((Date.now() - b.startedAt) / 60000);
-      const bw = Math.max(((clampedNow - b.startMins) / span * 100), 1).toFixed(2);
-      segs += `<div class="tl-seg" style="width:${bw}%;background:#f59e0b;animation:pulse 1.5s infinite;" title="On break now · ${elapsed}min"><span style="font-size:10px;font-weight:700;color:#fff;">⏸ ${elapsed}m</span></div>`;
+      segs += `<div class="tl-seg" style="width:${wpct(Math.max(clampedNow-b.startMins,1))}%;background:#f59e0b;animation:pulse 1.5s infinite;" title="On break now - ${elapsed}min"><span style="font-size:10px;font-weight:700;color:#fff;">B ${elapsed}m</span></div>`;
       cursor = clampedNow;
     }
   });
 
-  // Final gap to now
+  // gap to now
   if (clampedNow > cursor) {
-    const w = ((clampedNow - cursor) / span * 100).toFixed(2);
-    segs += `<div class="tl-seg gap-seg" style="width:${w}%;"></div>`;
+    segs += `<div class="tl-seg gap-seg" style="width:${wpct(clampedNow-cursor)}%;"></div>`;
     cursor = clampedNow;
   }
+  // rest of shift (hatched)
+  if (axisEnd > cursor) {
+    segs += `<div class="tl-seg future-seg" style="width:${wpct(axisEnd-cursor)}%;" title="Rest of shift"></div>`;
+  }
 
-  // Future (rest of shift)
-  if (axisEnd < shiftEndMins) {
-    const w = ((shiftEndMins - axisEnd) / span * 100).toFixed(2);
-    segs += `<div class="tl-seg future-seg" style="width:${w}%;" title="Rest of shift"></div>`;
+  // Axis labels
+  const step = span > 240 ? 60 : 30;
+  let axisLabels = '';
+  for (let m = axisStart; m <= axisEnd; m += step) {
+    axisLabels += `<span>${fmt12(m)}</span>`;
   }
 
   // Legend
-  const legend = blocks.map(b => `
-    <div class="tl-leg">
-      <div class="tl-leg-dot" style="background:${b.color};"></div>
-      ${b.label} · ${fmtMin(b.end-b.start)}
-    </div>`).join('') +
-    `<div class="tl-leg"><div class="tl-leg-dot" style="background:#e2e8f0;border:1px solid #cbd5e1;"></div>Gap</div>`;
+  let legend = blocks.map(b =>
+    `<div class="tl-leg"><div class="tl-leg-dot" style="background:#2563eb;"></div>${b.label} - ${fmtMin(b.end-b.start)}</div>`
+  ).join('');
+  legend += `<div class="tl-leg"><div class="tl-leg-dot" style="background:#1a2e4a;"></div>Changeover</div>`;
+  legend += `<div class="tl-leg"><div class="tl-leg-dot" style="background:#e2e8f0;border:1px solid #cbd5e1;"></div>Gap</div>`;
+  if (breakLog.length || activeBrk) legend += `<div class="tl-leg"><div class="tl-leg-dot" style="background:#f59e0b;"></div>Break</div>`;
 
   // Breakdown pills
   const totalProd = blocks.reduce((a,b) => a + (b.end - b.start), 0);
-  const totalBreaks = blocks.reduce((a,b) => a + b.deduct, 0);
-  let totalGap = 0;
-  let c2 = blocks[0].start;
-  blocks.forEach(b => { if (b.start > c2) totalGap += b.start - c2; c2 = b.end; });
-  if (clampedNow > c2) totalGap += clampedNow - c2;
-  const unlogged = Math.max(0, clampedNow - axisStart - totalProd - totalGap);
+  const totalBreakMins = breakLog.reduce((a,b) => a + (b.duration||0), 0);
+  const pills =
+    `<div class="tl-pill"><div class="tl-pill-dot" style="background:var(--accent);"></div>Production: ${fmtMin(totalProd)}</div>` +
+    (totalBreakMins > 0 ? `<div class="tl-pill" style="border-color:#fcd34d;"><div class="tl-pill-dot" style="background:#f59e0b;"></div>Breaks: ${fmtMin(totalBreakMins)}</div>` : '');
 
-  const loggedBreaks = getBreakLog();
-  const totalLoggedBreakMins = loggedBreaks.reduce((a,b) => a + b.duration, 0);
+  subEl.textContent = blocks.length
+    ? `${blocks.length} job${blocks.length!==1?'s':''} - ${fmt12(axisStart)} to ${fmt12(clampedNow)}`
+    : `Shift ${fmt12(shiftStartMins)} - ${fmt12(shiftEndMins)}`;
 
-  const pills = `
-    <div class="tl-pill"><div class="tl-pill-dot" style="background:var(--accent);"></div>Production: ${fmtMin(totalProd)}</div>
-    ${totalGap > 0 ? `<div class="tl-pill"><div class="tl-pill-dot" style="background:#94a3b8;"></div>Gap: ${fmtMin(totalGap)}</div>` : ''}
-    ${totalLoggedBreakMins > 0 ? `<div class="tl-pill" style="border-color:#fcd34d;"><div class="tl-pill-dot" style="background:#f59e0b;"></div>Breaks: ${fmtMin(totalLoggedBreakMins)}</div>` : ''}
-  `;
-
-  // Axis labels
-  const axisLabels = [];
-  const step = span > 240 ? 60 : 30;
-  for (let m = axisStart; m <= axisEnd; m += step) {
-    axisLabels.push(`<span>${fmt12(m)}</span>`);
-  }
-
-  subEl.textContent = `${blocks.length} job${blocks.length!==1?'s':''} · ${fmt12(axisStart)} → ${fmt12(clampedNow)} · Now: ${fmt12(nowMins)}`;
-
-  el.innerHTML = `
-    <div class="tl-axis">${axisLabels.join('')}</div>
-    <div class="tl-bar">${segs}</div>
-    <div class="tl-legend">${legend}</div>
-    <div class="tl-pills">${pills}</div>
-  `;
+  el.innerHTML =
+    `<div class="tl-axis">${axisLabels}</div>` +
+    `<div class="tl-bar">${segs}</div>` +
+    `<div class="tl-legend">${legend}</div>` +
+    `<div class="tl-pills">${pills}</div>`;
 }
 
 // ═══════════════════════════════════════════════
