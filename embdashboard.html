@@ -188,6 +188,21 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
 
 
 #mainContent { display: none; }
+
+/* TOOLTIPS */
+.tl-seg-wrap { position: relative; display: flex; flex: 1; }
+.tl-tooltip {
+  display: none; position: absolute; bottom: calc(100% + 6px); left: 50%;
+  transform: translateX(-50%); background: var(--navy); color: #fff;
+  font-size: 11px; font-weight: 500; padding: 5px 9px; border-radius: 6px;
+  white-space: nowrap; z-index: 50; pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+.tl-tooltip::after {
+  content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+  border: 4px solid transparent; border-top-color: var(--navy);
+}
+.tl-seg-wrap:hover .tl-tooltip { display: block; }
 </style>
 </head>
 <body>
@@ -845,7 +860,7 @@ function renderOpDetail() {
             const jPcsHr = netM > 0 ? ((parseInt(j.qty)||0)/netM*60).toFixed(1) : '—';
             const deductStr = parseInt(j.deduct) > 0 ? ` · −${j.deduct}m breaks` : '';
             const jDmg = parseInt(j.damages)||0;
-            const jPerf = netM > 0 ? Math.round(((parseInt(j.qty)||0) / DAILY_TARGET) * 100) : 0;
+            const jPerf = dayPcs > 0 ? Math.round((dayPcs / DAILY_TARGET) * 100) : 0;
             const jPerfColor = jPerf >= 100 ? 'var(--green)' : jPerf >= 75 ? 'var(--amber)' : 'var(--red)';
             let meta='', rev2='';
             if (j.action==='prod'||!j.isShay) {
@@ -930,8 +945,11 @@ function buildTimelineBar(dayProd, date) {
     const w = ((blk.end - blk.start) / totalSpan * 100).toFixed(1);
     const colors = ['#2563eb','#0891b2','#7c3aed','#059669','#dc2626','#d97706'];
     const c = colors[i % colors.length];
-    segments += `<div style="width:${w}%;background:${c};height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;" title="Job ${blk.label}: ${fmt12(blk.start)}–${fmt12(blk.end)}">
-      <span style="font-size:10px;font-weight:700;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 3px;">${blk.label}</span>
+    segments += `<div class="tl-seg-wrap" style="width:${w}%;">
+      <div style="width:100%;background:#2563eb;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+        <span style="font-size:10px;font-weight:700;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 3px;">${blk.label}</span>
+      </div>
+      <div class="tl-tooltip">Job ${blk.label}<br>${fmt12(blk.start)} → ${fmt12(blk.end)}<br>${fmtMin(blk.end-blk.start)}</div>
     </div>`;
     cursor = blk.end;
   });
