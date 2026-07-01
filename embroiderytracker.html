@@ -417,6 +417,28 @@ textarea { resize: vertical; min-height: 50px; }
 .modal-box p  { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
 .modal-btns { display: flex; gap: 8px; margin-top: 12px; }
 
+
+/* SHIFT TIMELINE */
+.tl-card { background: var(--card); border-radius: 8px; border: 1px solid var(--border); margin-bottom: 14px; overflow: hidden; }
+.tl-head { padding: 11px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.tl-title-row { display: flex; align-items: center; gap: 8px; }
+.tl-dot2 { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.tl-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+.tl-sub { font-size: 11px; color: var(--muted); }
+.tl-body { padding: 12px 16px 14px; }
+.tl-axis { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-bottom: 3px; }
+.tl-bar { display: flex; height: 30px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 8px; }
+.tl-seg { display: flex; align-items: center; justify-content: center; overflow: hidden; transition: width 0.3s; }
+.tl-seg span { font-size: 10px; font-weight: 700; color: #fff; white-space: nowrap; padding: 0 4px; overflow: hidden; text-overflow: ellipsis; }
+.gap-seg { background: #e2e8f0; }
+.future-seg { background: repeating-linear-gradient(45deg,#e2e8f0,#e2e8f0 4px,#f1f5f9 4px,#f1f5f9 8px); }
+.tl-legend { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.tl-leg { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); }
+.tl-leg-dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+.tl-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.tl-pill { display: flex; align-items: center; gap: 5px; background: var(--light); border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 600; color: var(--text); }
+.tl-pill-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.tl-empty { text-align: center; color: var(--muted); font-size: 12px; padding: 16px; }
 </style>
 </head>
 <body>
@@ -475,12 +497,13 @@ textarea { resize: vertical; min-height: 50px; }
       <div class="sum-val" id="wPcs">0</div>
     </div>
     <div class="sum-card highlight">
-      <div class="sum-label">Revenue</div>
-      <div class="sum-val" id="wRev">$0.00</div>
-    </div>
-    <div class="sum-card">
       <div class="sum-label">Pcs / Hr</div>
-      <div class="sum-val" id="wPcsHr" style="color:var(--text);">—</div>
+      <div class="sum-val" id="wPcsHr">—</div>
+    </div>
+    <div class="sum-card" style="border:1.5px solid #fed7aa;">
+      <div class="sum-label" style="color:var(--amber);">Damages</div>
+      <div class="sum-val" id="wDmg" style="color:var(--amber);">0</div>
+      <div class="sc-sub" style="color:var(--amber);font-size:10px;margin-top:3px;" id="wDmgRate"></div>
     </div>
   </div>
 
@@ -496,13 +519,31 @@ textarea { resize: vertical; min-height: 50px; }
       <div class="sum-val" id="sPcs">0</div>
     </div>
     <div class="sum-card highlight">
-      <div class="sum-label">Revenue</div>
-      <div class="sum-val" id="sRev">$0.00</div>
-    </div>
-    <div class="sum-card">
       <div class="sum-label">Pcs / Hr</div>
-      <div class="sum-val" id="sPcsHr" style="color:var(--text);">—</div>
+      <div class="sum-val" id="sPcsHr">—</div>
       <div class="target-line none" id="sTarget"></div>
+    </div>
+    <div class="sum-card" style="border:1.5px solid #fed7aa;">
+      <div class="sum-label" style="color:var(--amber);">Damages</div>
+      <div class="sum-val" id="sDmg" style="color:var(--amber);">0</div>
+      <div class="sc-sub" style="color:var(--amber);font-size:10px;margin-top:3px;" id="sDmgRate"></div>
+    </div>
+  </div>
+
+  <!-- ── SHIFT TIMELINE ── -->
+  <div class="tl-card" id="timelineCard">
+    <div class="tl-head">
+      <div class="tl-title-row">
+        <div class="tl-dot"></div>
+        <div class="tl-title">Today's Shift Timeline</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="tl-sub" id="tlSub">Add jobs to see your shift timeline</div>
+        <button onclick="showBreakPicker()" id="logBreakBtn" style="background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">⏸ Log Break</button>
+      </div>
+    </div>
+    <div class="tl-body">
+      <div id="tlContent"><div class="tl-empty">No jobs logged yet — timeline updates as you add jobs.</div></div>
     </div>
   </div>
 
@@ -679,6 +720,13 @@ textarea { resize: vertical; min-height: 50px; }
           </div>
         </div>
 
+        <!-- DAMAGE FIELD -->
+        <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:6px;padding:10px 14px;display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+          <div style="font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:0.5px;flex-shrink:0;">⚠ Damages</div>
+          <input type="number" id="fDamages" placeholder="0" min="0" value="0" style="border:1.5px solid #fed7aa;border-radius:5px;padding:6px 10px;font-size:14px;width:80px;background:white;font-family:'Inter',sans-serif;" />
+          <div style="font-size:11px;color:var(--amber);">Garments damaged on this job — leave 0 if none.</div>
+        </div>
+
         <div class="rev-strip">
           <div>
             <div class="rs-label">Revenue</div>
@@ -745,25 +793,7 @@ textarea { resize: vertical; min-height: 50px; }
           </div>
         </div>
 
-        <!-- BREAK DEDUCTIONS -->
-        <div class="fg" style="margin-top:4px;">
-          <label>Breaks During This Job</label>
-          <div style="background:#f8fafc;border:1px solid var(--border);border-radius:6px;padding:10px 14px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:4px;">
-            <label id="lbl-brk1" style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--text);text-transform:none;letter-spacing:0;cursor:pointer;">
-              <input type="checkbox" id="brk1" onchange="onBreakChange(1)" style="width:15px;height:15px;accent-color:var(--accent);border-radius:3px;" />
-              10 min break (9:00 AM)
-            </label>
-            <label id="lbl-brk2" style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--text);text-transform:none;letter-spacing:0;cursor:pointer;">
-              <input type="checkbox" id="brk2" onchange="onBreakChange(2)" style="width:15px;height:15px;accent-color:var(--accent);border-radius:3px;" />
-              30 min lunch (11:30 AM)
-            </label>
-            <label id="lbl-brk3" style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--text);text-transform:none;letter-spacing:0;cursor:pointer;">
-              <input type="checkbox" id="brk3" onchange="onBreakChange(3)" style="width:15px;height:15px;accent-color:var(--accent);border-radius:3px;" />
-              10 min break (1:30 PM)
-            </label>
-            <span id="brkDeductDisplay" style="font-size:12px;font-weight:600;color:var(--muted);margin-left:auto;"></span>
-          </div>
-        </div>
+
 
       </div>
       <!-- END PRODUCTION FIELDS -->
@@ -840,9 +870,9 @@ window.onload = function () {
   document.getElementById('hDate').textContent =
     now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
   try { const s = sessionStorage.getItem('emb_staging'); if (s) jobs = JSON.parse(s); } catch(e){}
-  lockUsedBreaks();
   renderTable();
   updateSummary();
+  renderTimeline();
 };
 
 // ═══════════════════════════════════════════════
@@ -907,61 +937,115 @@ function calcRevenue() {
   document.getElementById('revDisplay').textContent = '$' + (qty * price).toFixed(2);
 }
 
-function getBreakDeduction() {
-  let deduct = 0;
-  if (document.getElementById('brk1')?.checked) deduct += 10;
-  if (document.getElementById('brk2')?.checked) deduct += 30;
-  if (document.getElementById('brk3')?.checked) deduct += 10;
-  return deduct;
-}
-
-function updateBreakDeduction() {
-  const deduct = getBreakDeduction();
-  const el = document.getElementById('brkDeductDisplay');
-  if (el) el.textContent = deduct > 0 ? '−' + deduct + ' min deducted' : '';
-}
-
-// Break lock system — each break can only be used once per day
+// ═══════════════════════════════════════════════
+//  BREAK LOG SYSTEM
+// ═══════════════════════════════════════════════
 const BREAK_KEY = 'emb_breaks_used_';
+const BREAK_LOG_KEY = 'emb_break_log_';
+
+const BREAK_DEFS = [
+  { id: 'brk1', label: '10 min break', time: '9:00 AM',  duration: 10 },
+  { id: 'brk2', label: '30 min lunch', time: '11:30 AM', duration: 30 },
+  { id: 'brk3', label: '10 min break', time: '1:30 PM',  duration: 10 },
+];
+
+function todayKey2() { return new Date().toISOString().slice(0,10); }
 
 function getBreaksUsed() {
-  const today = new Date().toISOString().slice(0,10);
-  return JSON.parse(localStorage.getItem(BREAK_KEY + today) || '{}');
+  return JSON.parse(localStorage.getItem(BREAK_KEY + todayKey2()) || '{}');
 }
 
 function saveBreaksUsed(used) {
-  const today = new Date().toISOString().slice(0,10);
-  localStorage.setItem(BREAK_KEY + today, JSON.stringify(used));
+  localStorage.setItem(BREAK_KEY + todayKey2(), JSON.stringify(used));
 }
 
-function onBreakChange(num) {
-  updateBreakDeduction();
+function getBreakLog() {
+  return JSON.parse(localStorage.getItem(BREAK_LOG_KEY + todayKey2()) || '[]');
 }
 
-function lockUsedBreaks() {
+function saveBreakLog(log) {
+  localStorage.setItem(BREAK_LOG_KEY + todayKey2(), JSON.stringify(log));
+}
+
+function showBreakPicker() {
   const used = getBreaksUsed();
-  [1,2,3].forEach(n => {
-    const el  = document.getElementById('brk' + n);
-    const lbl = document.getElementById('lbl-brk' + n);
-    if (used['brk'+n]) {
-      if (el)  { el.checked = true; el.disabled = true; }
-      if (lbl) { lbl.style.color = 'var(--muted)'; lbl.style.cursor = 'default'; lbl.title = 'Already used today'; }
-    } else {
-      if (el)  { el.disabled = false; }
-      if (lbl) { lbl.style.color = 'var(--text)'; lbl.style.cursor = 'pointer'; lbl.title = ''; }
-    }
-  });
-  updateBreakDeduction();
+  const opts = document.getElementById('breakOptions');
+  opts.innerHTML = BREAK_DEFS.map(b => {
+    const isUsed = used[b.id];
+    return `<button onclick="${isUsed ? '' : `logBreak('${b.id}')`}"
+      style="width:100%;padding:11px 14px;border-radius:8px;border:1.5px solid ${isUsed ? 'var(--border)' : '#f59e0b'};
+      background:${isUsed ? 'var(--light)' : '#fffbeb'};
+      color:${isUsed ? 'var(--muted)' : '#92400e'};
+      font-family:'Inter',sans-serif;font-size:13px;font-weight:600;
+      cursor:${isUsed ? 'not-allowed' : 'pointer'};text-align:left;
+      display:flex;justify-content:space-between;align-items:center;">
+      <span>${b.label} (${b.time})</span>
+      <span style="font-size:11px;">${isUsed ? '✓ Already used' : b.duration + ' min'}</span>
+    </button>`;
+  }).join('');
+  document.getElementById('breakPickerModal').style.display = 'flex';
 }
 
-function markBreaksUsed() {
+function closeBreakPicker() {
+  document.getElementById('breakPickerModal').style.display = 'none';
+}
+
+function logBreak(brkId) {
   const used = getBreaksUsed();
-  if (document.getElementById('brk1')?.checked) used['brk1'] = true;
-  if (document.getElementById('brk2')?.checked) used['brk2'] = true;
-  if (document.getElementById('brk3')?.checked) used['brk3'] = true;
+  if (used[brkId]) { closeBreakPicker(); return; }
+
+  const def = BREAK_DEFS.find(b => b.id === brkId);
+  const now = new Date();
+  const startMins = now.getHours() * 60 + now.getMinutes();
+  const endMins   = startMins + def.duration;
+
+  const fmt12 = m => {
+    let h = Math.floor(m/60), mn = m%60, ap = 'AM';
+    if (h >= 12) { ap = 'PM'; if (h > 12) h -= 12; }
+    if (h === 0) h = 12;
+    return `${h}:${mn.toString().padStart(2,'0')} ${ap}`;
+  };
+
+  const breakEntry = {
+    id: brkId,
+    label: def.label,
+    duration: def.duration,
+    startTime: fmt12(startMins),
+    stopTime:  fmt12(endMins),
+    startMins, endMins,
+    date: todayKey2()
+  };
+
+  // Save break log
+  const log = getBreakLog();
+  log.push(breakEntry);
+  saveBreakLog(log);
+
+  // Mark as used
+  used[brkId] = true;
   saveBreaksUsed(used);
-  lockUsedBreaks();
+
+  closeBreakPicker();
+  renderTimeline();
+  updateSummary();
+  showAlert(`⏸ ${def.label} logged — ${def.duration} min`, 'ok');
 }
+
+// Compute deduction for a job based on logged breaks that fall within its window
+function getJobBreakDeduction(startMins, stopMins) {
+  const log = getBreakLog();
+  return log.reduce((total, b) => {
+    // Break falls within job window if break start is inside the job
+    if (b.startMins >= startMins && b.startMins < stopMins) {
+      return total + b.duration;
+    }
+    return total;
+  }, 0);
+}
+
+// Legacy — not used anymore but keep to avoid errors
+function lockUsedBreaks() {}
+function markBreaksUsed() {}
 
 // ═══════════════════════════════════════════════
 //  TIME HELPERS
@@ -1078,9 +1162,10 @@ function addJob() {
 
   jobs.push(job);
   sessionStorage.setItem('emb_staging', JSON.stringify(jobs));
-  markBreaksUsed();
   renderTable();
   updateSummary();
+  renderTimeline();
+  renderTimeline();
   resetForm();
   showAlert('Job added to log.', 'ok');
 }
@@ -1102,20 +1187,17 @@ function buildProd() {
   const stopMins  = toMins(eH, eM, eAP);
   if (stopMins <= startMins) { showAlert('Stop time must be after start time.', 'bad'); return null; }
 
-  const elapsed   = stopMins - startMins;
-  const deduct    = getBreakDeduction();
+  const elapsed    = stopMins - startMins;
+  const deduct     = getJobBreakDeduction(startMins, stopMins);
   const netElapsed = Math.max(elapsed - deduct, 1);
-  const revenue   = parseFloat(qty) * parseFloat(price);
-  const brk1 = document.getElementById('brk1')?.checked || false;
-  const brk2 = document.getElementById('brk2')?.checked || false;
-  const brk3 = document.getElementById('brk3')?.checked || false;
+  const revenue    = parseFloat(qty) * parseFloat(price);
+  const damages    = parseInt(document.getElementById('fDamages')?.value) || 0;
 
   return {
     qty: parseInt(qty), unitPrice: parseFloat(price), revenue,
     startTime: `${sH}:${sM} ${sAP}`, stopTime: `${eH}:${eM} ${eAP}`,
     startMins, stopMins, elapsed, deduct, netElapsed,
-    runtime: parseInt(runtime), changeover: parseInt(co),
-    brk1, brk2, brk3
+    runtime: parseInt(runtime), changeover: parseInt(co), damages
   };
 }
 
@@ -1136,8 +1218,10 @@ function renderTable() {
     if (j.action === 'prod' || !j.isShay) {
       desc = `<div class="job-name">${j.jobName} ${chip}</div>`;
       const deductStr = j.deduct > 0 ? ` · −${j.deduct}m breaks` : '';
+      const dmgBadge = j.damages > 0 ? `<span style="background:#fff7ed;color:var(--amber);font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;margin-left:6px;">⚠ ${j.damages} dmg</span>` : '';
       meta = `<div class="job-meta">${j.machine} · ${j.startTime} → ${j.stopTime} · ${fmtMin(j.netElapsed || j.elapsed)} net${deductStr} · CO: ${j.changeover}m · Runtime: ${j.runtime}m</div>`;
-      rev  = `<span class="rev-val">$${j.revenue.toFixed(2)}</span><div style="font-size:11px;color:var(--muted);">${j.qty} pcs</div>`;
+      const dmgBadge2 = j.damages > 0 ? `<span style="background:#fff7ed;color:var(--amber);font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;margin-left:4px;">⚠ ${j.damages} dmg</span>` : '';
+      rev  = `<span class="rev-val">$${j.revenue.toFixed(2)}</span><div style="font-size:11px;color:var(--muted);">${j.qty} pcs ${dmgBadge2}</div>`;
     } else if (j.action === 'sample') {
       desc = `<div class="job-name">${j.jobName} ${chip}</div>`;
       const spools = j.colors.map(c => `${c.name}: ${c.spools}`).join(', ');
@@ -1198,6 +1282,7 @@ function removeJob(id) {
   sessionStorage.setItem('emb_staging', JSON.stringify(jobs));
   renderTable();
   updateSummary();
+  renderTimeline();
 }
 
 // ═══════════════════════════════════════════════
@@ -1235,10 +1320,13 @@ function updateSummary() {
   const totalMin = prodJobs.reduce((a,j) => a + (j.netElapsed || j.elapsed || 0), 0);
   const pcsHr    = totalMin > 0 ? ((totalPcs / totalMin) * 60).toFixed(1) : '—';
 
-  document.getElementById('sJobs').textContent  = allToday.length;
-  document.getElementById('sPcs').textContent   = totalPcs;
-  document.getElementById('sRev').textContent   = '$' + totalRev.toFixed(2);
-  document.getElementById('sPcsHr').textContent = pcsHr;
+  const totalDmg = allToday.reduce((a,j) => a + (parseInt(j.damages)||0), 0);
+  document.getElementById('sJobs').textContent   = allToday.length;
+  document.getElementById('sPcs').textContent    = totalPcs;
+  document.getElementById('sPcsHr').textContent  = pcsHr;
+  document.getElementById('sDmg').textContent    = totalDmg;
+  const sDmgRateEl = document.getElementById('sDmgRate');
+  if (sDmgRateEl) sDmgRateEl.textContent = totalPcs > 0 ? ((totalDmg/totalPcs)*100).toFixed(2)+'% rate' : '';
 
   // Weekly metrics
   const weekJobs = getAllWeekJobs();
@@ -1247,10 +1335,13 @@ function updateSummary() {
   const wRev     = wProd.reduce((a,j) => a + (parseFloat(j.revenue)||0), 0);
   const wMin     = wProd.reduce((a,j) => a + (parseInt(j.netElapsed||j.elapsed)||0), 0);
   const wPcsHr   = wMin > 0 ? ((wPcs / wMin) * 60).toFixed(1) : '—';
-  document.getElementById('wJobs').textContent  = weekJobs.length;
-  document.getElementById('wPcs').textContent   = wPcs;
-  document.getElementById('wRev').textContent   = '$' + wRev.toFixed(2);
-  document.getElementById('wPcsHr').textContent = wPcsHr;
+  const wDmg = weekJobs.reduce((a,j) => a + (parseInt(j.damages)||0), 0);
+  document.getElementById('wJobs').textContent   = weekJobs.length;
+  document.getElementById('wPcs').textContent    = wPcs;
+  document.getElementById('wPcsHr').textContent  = wPcsHr;
+  document.getElementById('wDmg').textContent    = wDmg;
+  const wDmgRateEl = document.getElementById('wDmgRate');
+  if (wDmgRateEl) wDmgRateEl.textContent = wPcs > 0 ? ((wDmg/wPcs)*100).toFixed(2)+'% rate' : '';
 
   const machine = v('hMachine');
   const target  = MACHINE_TARGETS[machine] || 0;
@@ -1291,6 +1382,7 @@ async function saveAll() {
     unsaved.forEach(j => j.saved = true);
     showAlert('✅ ' + unsaved.length + ' job(s) saved to Google Sheets.', 'ok');
     renderTable();
+    renderTimeline();
   } catch(e) {
     showAlert('⚠ Sheet sync failed — check connection.', 'bad');
   } finally {
@@ -1299,11 +1391,170 @@ async function saveAll() {
 }
 
 // ═══════════════════════════════════════════════
+//  SHIFT TIMELINE
+// ═══════════════════════════════════════════════
+const JOB_COLORS = ['#2563eb','#0891b2','#7c3aed','#059669','#dc2626','#d97706','#0284c7','#9333ea'];
+const SHIFT_START_HOUR = 7;  // 7:00 AM
+const SHIFT_END_HOUR   = 18; // 6:00 PM
+const SHIFT_SPAN_MINS  = (SHIFT_END_HOUR - SHIFT_START_HOUR) * 60;
+
+function parseTimeStr(str) {
+  if (!str) return null;
+  const m = String(str).match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+  if (!m) return null;
+  let h = parseInt(m[1]), mn = parseInt(m[2]), ap = m[3].toUpperCase();
+  if (ap === 'PM' && h !== 12) h += 12;
+  if (ap === 'AM' && h === 12) h = 0;
+  return h * 60 + mn;
+}
+
+function fmt12(totalMins) {
+  let h = Math.floor(totalMins/60), m = totalMins%60, ap = 'AM';
+  if (h >= 12) { ap = 'PM'; if (h > 12) h -= 12; }
+  if (h === 0) h = 12;
+  return `${h}:${m.toString().padStart(2,'0')} ${ap}`;
+}
+
+function renderTimeline() {
+  const today = new Date().toISOString().slice(0,10);
+  const savedToday = JSON.parse(localStorage.getItem('emb_jobs_' + today) || '[]');
+  const allToday = [...savedToday, ...jobs.filter(j => !j.saved)];
+  const prodJobs = allToday.filter(j => (j.action === 'prod' || !j.isShay) && j.startTime && j.stopTime);
+
+  const el = document.getElementById('tlContent');
+  const subEl = document.getElementById('tlSub');
+
+  if (!prodJobs.length) {
+    el.innerHTML = '<div class="tl-empty">No jobs logged yet — timeline updates as you add jobs.</div>';
+    subEl.textContent = 'Add jobs to see your shift timeline';
+    return;
+  }
+
+  const shiftStartMins = SHIFT_START_HOUR * 60;
+  const now = new Date();
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  const clampedNow = Math.min(nowMins, SHIFT_END_HOUR * 60);
+
+  // Build job blocks
+  const blocks = prodJobs.map((j, i) => ({
+    start: parseTimeStr(j.startTime),
+    end:   parseTimeStr(j.stopTime),
+    label: j.jobNum,
+    name:  j.jobName,
+    color: JOB_COLORS[i % JOB_COLORS.length],
+    deduct: parseInt(j.deduct)||0
+  })).filter(b => b.start !== null && b.end !== null && b.end > b.start)
+     .sort((a,b) => a.start - b.start);
+
+  if (!blocks.length) {
+    el.innerHTML = '<div class="tl-empty">Enter start and stop times to see the timeline.</div>';
+    return;
+  }
+
+  const firstStart = blocks[0].start;
+  const lastEnd    = blocks[blocks.length-1].end;
+  const axisStart  = Math.min(firstStart, shiftStartMins);
+  const axisEnd    = Math.max(lastEnd, clampedNow);
+  const span       = axisEnd - axisStart;
+
+  if (span <= 0) return;
+
+  const pct = mins => ((mins / span) * 100).toFixed(2) + '%';
+
+  // Build segments
+  let segs = '';
+  let cursor = axisStart;
+
+  blocks.forEach((blk, i) => {
+    if (blk.start > cursor) {
+      const w = ((blk.start - cursor) / span * 100).toFixed(2);
+      segs += `<div class="tl-seg gap-seg" style="width:${w}%;" title="Gap · ${fmtMin(blk.start-cursor)}"></div>`;
+    }
+    const w = ((blk.end - blk.start) / span * 100).toFixed(2);
+    segs += `<div class="tl-seg" style="width:${w}%;background:${blk.color};" title="Job ${blk.label}: ${fmt12(blk.start)}–${fmt12(blk.end)} · ${fmtMin(blk.end-blk.start)}"><span>${blk.label}</span></div>`;
+    cursor = blk.end;
+  });
+
+  // Insert logged breaks that fall outside job windows
+  const breakLog = getBreakLog();
+
+  // Gap after last job to now — but first insert any standalone breaks
+  if (clampedNow > cursor) {
+    // Check for breaks between cursor and now
+    const standaloneBreaks = breakLog.filter(b => b.startMins >= cursor && b.startMins < clampedNow);
+    standaloneBreaks.sort((a,b) => a.startMins - b.startMins);
+    standaloneBreaks.forEach(b => {
+      if (b.startMins > cursor) {
+        const gw = ((b.startMins - cursor) / span * 100).toFixed(2);
+        segs += `<div class="tl-seg gap-seg" style="width:${gw}%;" title="Gap · ${fmtMin(b.startMins-cursor)}"></div>`;
+      }
+      const bw = ((b.duration) / span * 100).toFixed(2);
+      segs += `<div class="tl-seg" style="width:${bw}%;background:#f59e0b;" title="${b.label} · ${b.startTime}–${b.stopTime}"><span style="font-size:10px;font-weight:700;color:#fff;">⏸</span></div>`;
+      cursor = b.endMins;
+    });
+    if (clampedNow > cursor) {
+      const w = ((clampedNow - cursor) / span * 100).toFixed(2);
+      segs += `<div class="tl-seg gap-seg" style="width:${w}%;" title="Since last job · ${fmtMin(clampedNow-cursor)}"></div>`;
+      cursor = clampedNow;
+    }
+  }
+
+  // Future (rest of shift)
+  if (axisEnd < SHIFT_END_HOUR * 60) {
+    const w = ((SHIFT_END_HOUR * 60 - axisEnd) / span * 100).toFixed(2);
+    segs += `<div class="tl-seg future-seg" style="width:${w}%;" title="Rest of shift"></div>`;
+  }
+
+  // Legend
+  const legend = blocks.map(b => `
+    <div class="tl-leg">
+      <div class="tl-leg-dot" style="background:${b.color};"></div>
+      ${b.label} · ${fmtMin(b.end-b.start)}
+    </div>`).join('') +
+    `<div class="tl-leg"><div class="tl-leg-dot" style="background:#e2e8f0;border:1px solid #cbd5e1;"></div>Gap</div>`;
+
+  // Breakdown pills
+  const totalProd = blocks.reduce((a,b) => a + (b.end - b.start), 0);
+  const totalBreaks = blocks.reduce((a,b) => a + b.deduct, 0);
+  let totalGap = 0;
+  let c2 = blocks[0].start;
+  blocks.forEach(b => { if (b.start > c2) totalGap += b.start - c2; c2 = b.end; });
+  if (clampedNow > c2) totalGap += clampedNow - c2;
+  const unlogged = Math.max(0, clampedNow - axisStart - totalProd - totalGap);
+
+  const loggedBreaks = getBreakLog();
+  const totalLoggedBreakMins = loggedBreaks.reduce((a,b) => a + b.duration, 0);
+
+  const pills = `
+    <div class="tl-pill"><div class="tl-pill-dot" style="background:var(--accent);"></div>Production: ${fmtMin(totalProd)}</div>
+    ${totalGap > 0 ? `<div class="tl-pill"><div class="tl-pill-dot" style="background:#94a3b8;"></div>Gap: ${fmtMin(totalGap)}</div>` : ''}
+    ${totalLoggedBreakMins > 0 ? `<div class="tl-pill" style="border-color:#fcd34d;"><div class="tl-pill-dot" style="background:#f59e0b;"></div>Breaks: ${fmtMin(totalLoggedBreakMins)}</div>` : ''}
+  `;
+
+  // Axis labels
+  const axisLabels = [];
+  const step = span > 240 ? 60 : 30;
+  for (let m = axisStart; m <= axisEnd; m += step) {
+    axisLabels.push(`<span>${fmt12(m)}</span>`);
+  }
+
+  subEl.textContent = `${blocks.length} job${blocks.length!==1?'s':''} · ${fmt12(axisStart)} → ${fmt12(clampedNow)} · Now: ${fmt12(nowMins)}`;
+
+  el.innerHTML = `
+    <div class="tl-axis">${axisLabels.join('')}</div>
+    <div class="tl-bar">${segs}</div>
+    <div class="tl-legend">${legend}</div>
+    <div class="tl-pills">${pills}</div>
+  `;
+}
+
+// ═══════════════════════════════════════════════
 //  RESET FORM
 // ═══════════════════════════════════════════════
 function resetForm() {
   ['fJobNum','fJobName','fQty','fUnitPrice','fRuntime','fNotes','fIntendedQty','fAssetCode','fEditDur']
     .forEach(id => { const el = document.getElementById(id); if (el) { el.value = ''; el.classList.remove('err'); } });
+  const dmgEl = document.getElementById('fDamages'); if (dmgEl) dmgEl.value = '0';
   ['fSH','fSM','fEH','fEM','fSampleType','fNumColors','fCoOp','fCoDur','fChangeover',
    'fSSH','fSSM','fSEH','fSEM']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
@@ -1312,8 +1563,7 @@ function resetForm() {
   document.getElementById('fSAP').value = 'AM';
   document.getElementById('fEAP').value = 'AM';
   document.getElementById('revDisplay').textContent = '$0.00';
-  lockUsedBreaks(); // restore locked state — don't uncheck breaks already used today
-  const brkEl = document.getElementById('brkDeductDisplay'); if(brkEl) brkEl.textContent = '';
+  // break state managed by Log Break button — nothing to reset here
   document.getElementById('colorContainer').innerHTML = '';
   if (v('hOperator') === 'Shay Chavez') { shayAction = ''; clearActionPanels(); }
 }
@@ -1331,7 +1581,7 @@ function exportCSV() {
     'Sample Type','Intended Qty','Colors','CO Operator','CO Duration','Asset Code','Edit Duration','Notes'];
   const rows = all.map(j => [
     j.date, j.operator, j.machine, j.jobNum, j.jobName, j.action,
-    j.qty||'', j.unitPrice||'', j.revenue ? j.revenue.toFixed(2):'',
+    j.qty||'', j.unitPrice||'', j.revenue ? j.revenue.toFixed(2):'', j.damages||0,
     j.startTime||'', j.stopTime||'', j.elapsed||'', j.runtime||'', j.changeover||'',
     j.sampleType||'', j.intendedQty||'',
     j.colors ? j.colors.map(c=>`${c.name}:${c.spools}`).join('; '):'',
@@ -1363,5 +1613,15 @@ function showAlert(msg, type) {
 }
 
 </script>
+<!-- BREAK PICKER MODAL -->
+<div id="breakPickerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;padding:24px;width:90%;max-width:360px;box-shadow:0 16px 48px rgba(0,0,0,0.2);">
+    <div style="font-size:15px;font-weight:700;margin-bottom:4px;">⏸ Log a Break</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">Select the break you're taking. Each break can only be logged once per day.</div>
+    <div id="breakOptions" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;"></div>
+    <button onclick="closeBreakPicker()" style="width:100%;background:none;border:1.5px solid var(--border);border-radius:7px;padding:9px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted);">Cancel</button>
+  </div>
+</div>
+
 </body>
 </html>
