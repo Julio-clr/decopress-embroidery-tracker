@@ -818,6 +818,9 @@ textarea { resize: vertical; min-height: 50px; }
           </div>
         </div>
 
+        <!-- AM/PM sanity warning -->
+        <div id="timeWarning" style="display:none;border-radius:6px;padding:8px 12px;font-size:12px;font-weight:600;margin-bottom:10px;"></div>
+
         <div class="row c3">
           <div class="fg">
             <label>Machine Runtime (min) <span class="req">*</span></label>
@@ -978,7 +981,23 @@ function initTimePickers() {
 
 function selectTp(which, field, val) {
   tpState[which][field] = val;
-  // update selected state
+
+  // Smart AM/PM default when hour is selected
+  if (field === 'h') {
+    const h = parseInt(val);
+    // Hours 6-11 → AM, hours 12-5 → PM (typical shift hours)
+    const smartAp = (h >= 6 && h <= 11) ? 'AM' : 'PM';
+    tpState[which].ap = smartAp;
+    // Update AP scroll UI
+    const apScroll = document.getElementById(which + 'ApScroll');
+    if (apScroll) {
+      apScroll.querySelectorAll('.tp-item').forEach(el => {
+        el.classList.toggle('selected', el.textContent.trim() === smartAp);
+      });
+    }
+  }
+
+  // update selected state for this field
   const scrollIds = { h: which+'HrScroll', m: which+'MinScroll', ap: which+'ApScroll' };
   const scroll = document.getElementById(scrollIds[field]);
   if (scroll) {
@@ -987,6 +1006,36 @@ function selectTp(which, field, val) {
     });
   }
   updateTimeDisplay(which);
+  // Run sanity check whenever either time changes
+  if (field !== 'ap' || tpState[which].h) checkTimesSanity();
+}
+
+function checkTimesSanity() {
+  const s = tpState['start'];
+  const e = tpState['stop'];
+  if (!s.h || !s.m || !e.h || !e.m) return;
+
+  const startM = toMins(s.h, s.m, s.ap);
+  const stopM  = toMins(e.h, e.m, e.ap);
+  if (startM === null || stopM === null) return;
+
+  const elapsed = stopM - startM;
+  const warnEl  = document.getElementById('timeWarning');
+  if (!warnEl) return;
+
+  if (elapsed < 0) {
+    warnEl.style.display = 'block';
+    warnEl.textContent = '⚠ Stop time is before start time — did you mix up AM/PM?';
+    warnEl.style.background = '#fee2e2';
+    warnEl.style.color = 'var(--red)';
+  } else if (elapsed > 12 * 60) {
+    warnEl.style.display = 'block';
+    warnEl.textContent = `⚠ Shift showing ${Math.floor(elapsed/60)}h ${elapsed%60}m — did you mix up AM/PM?`;
+    warnEl.style.background = '#fef3c7';
+    warnEl.style.color = 'var(--amber)';
+  } else {
+    warnEl.style.display = 'none';
+  }
 }
 
 function updateTimeDisplay(which) {
@@ -1381,7 +1430,7 @@ function endBreak() {
   // Friendly messages
   let msg;
   if (over <= 3) {
-    msg = '💪 Welcome back! Let's get it!';
+    msg = "💪 Welcome back! Let's get it!";
   } else if (over <= 7) {
     msg = `Almost on time! Just ${over}min over — let's get back to it. 💪`;
   } else if (over <= 15) {
@@ -2059,6 +2108,8 @@ function resetForm() {
   const seap = document.getElementById('fSEAP'); if(seap) seap.value = 'AM';
   resetTimePickers();
   resetAssets();
+  const warnEl = document.getElementById('timeWarning');
+  if (warnEl) warnEl.style.display = 'none';
   document.getElementById('fSAP').value = 'AM';
   document.getElementById('fEAP').value = 'AM';
   document.getElementById('revDisplay').textContent = '$0.00';
