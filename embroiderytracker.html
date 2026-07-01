@@ -1851,16 +1851,19 @@ function updateSummary() {
   const wDmgRateEl = document.getElementById('wDmgRate');
   if (wDmgRateEl) wDmgRateEl.textContent = wPcs > 0 ? ((wDmg/wPcs)*100).toFixed(2)+'% rate' : '';
 
-  const machine = v('hMachine');
-  const target  = MACHINE_TARGETS[machine] || 0;
-  const tEl     = document.getElementById('sTarget');
-  if (!target || !machine) {
-    tEl.textContent = ''; tEl.className = 'target-line none';
-  } else {
-    const diff = (totalRev - target).toFixed(0);
-    const hit  = totalRev >= target;
-    tEl.textContent = hit ? `✓ Target hit (+$${diff})` : `$${Math.abs(diff)} to target`;
-    tEl.className   = 'target-line ' + (hit ? 'hit' : 'miss');
+  // sTarget element was removed from scorecard — guard against null
+  const tEl = document.getElementById('sTarget');
+  if (tEl) {
+    const machine = v('hMachine');
+    const target  = MACHINE_TARGETS[machine] || 0;
+    if (!target || !machine) {
+      tEl.textContent = ''; tEl.className = 'target-line none';
+    } else {
+      const diff = (totalRev - target).toFixed(0);
+      const hit  = totalRev >= target;
+      tEl.textContent = hit ? `✓ Target hit (+$${diff})` : `$${Math.abs(diff)} to target`;
+      tEl.className   = 'target-line ' + (hit ? 'hit' : 'miss');
+    }
   }
 }
 
@@ -1984,12 +1987,7 @@ function renderTimeline() {
   })).filter(b => b.start !== null && b.end !== null && !isNaN(b.start) && !isNaN(b.end) && b.end > b.start)
      .sort((a,b) => a.start - b.start);
 
-  console.log('TIMELINE DEBUG:', {
-    prodJobsCount: prodJobs.length,
-    prodJobsSample: prodJobs.map(j => ({jobNum: j.jobNum, action: j.action, isShay: j.isShay, startTime: j.startTime, stopTime: j.stopTime, startMins: j.startMins, stopMins: j.stopMins})),
-    blocksCount: blocks.length,
-    blocks: blocks
-  });
+
 
   // Axis ALWAYS spans the full shift window; expand if jobs/breaks fall outside
   let axisStart = shiftStartMins;
