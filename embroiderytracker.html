@@ -468,6 +468,14 @@ textarea { resize: vertical; min-height: 50px; }
 .tl-seg span { font-size: 10px; font-weight: 700; color: #fff; white-space: nowrap; padding: 0 4px; overflow: hidden; text-overflow: ellipsis; }
 .gap-seg { background: #e2e8f0; }
 .future-seg { background: repeating-linear-gradient(45deg,#e2e8f0,#e2e8f0 4px,#f1f5f9 4px,#f1f5f9 8px); }
+.tl-bar-wrap { position: relative; margin-bottom: 8px; }
+.tl-break-overlay {
+  position: absolute; top: -3px; height: 36px; z-index: 5;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 3px; box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+  border: 1.5px solid #fff; min-width: 8px;
+}
+.tl-break-overlay span { font-size: 9px; font-weight: 800; color: #fff; white-space: nowrap; }
 .tl-legend { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
 .tl-leg { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); }
 .tl-leg-dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
@@ -1717,7 +1725,15 @@ function renderTable() {
 
     if (j.action === 'prod' || !j.isShay) {
       desc = `<div class="job-name">${j.jobName} ${chip}</div>`;
-      const deductStr = j.deduct > 0 ? ` · −${j.deduct}m breaks` : '';
+      // Show WHEN breaks were taken (time ranges) instead of minute count
+      const jobBreaks = getBreakLog().filter(b => {
+        const js = (j.startMins!==undefined&&j.startMins!=='') ? parseInt(j.startMins) : parseTimeStr(j.startTime);
+        const je = (j.stopMins!==undefined&&j.stopMins!=='') ? parseInt(j.stopMins) : parseTimeStr(j.stopTime);
+        return b.startMins >= js && b.startMins < je;
+      });
+      const deductStr = jobBreaks.length
+        ? ' · breaks: ' + jobBreaks.map(b => `${b.startTime}–${b.stopTime}`).join(', ')
+        : '';
       const dmgBadge = j.damages > 0 ? `<span style="background:#fff7ed;color:var(--amber);font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;margin-left:6px;">⚠ ${j.damages} dmg</span>` : '';
       meta = `<div class="job-meta">${j.machine} · ${j.startTime} → ${j.stopTime} · ${fmtMin(j.netElapsed || j.elapsed)} net${deductStr} · CO: ${j.changeover}m · Runtime: ${j.runtime}m</div>`;
       const dmgBadge2 = j.damages > 0 ? `<span style="background:#fff7ed;color:var(--amber);font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;margin-left:4px;">⚠ ${j.damages} dmg</span>` : '';
@@ -1876,6 +1892,17 @@ async function saveAll() {
   if (!v('hOperator')) { showAlert('Select an operator first.', 'bad'); return; }
   if (!v('hMachine'))  { showAlert('Select a machine first.', 'bad'); return; }
 
+  // Attach the breaks that fall within each job's window (so dashboard can draw them)
+  const allBreaks = getBreakLog();
+  unsaved.forEach(j => {
+    const js = (j.startMins!==undefined&&j.startMins!=='') ? parseInt(j.startMins) : parseTimeStr(j.startTime);
+    const je = (j.stopMins!==undefined&&j.stopMins!=='') ? parseInt(j.stopMins) : parseTimeStr(j.stopTime);
+    if (js === null || je === null) { j.breakLog = ''; return; }
+    const inWindow = allBreaks.filter(b => b.startMins >= js && b.startMins < je)
+      .map(b => ({ label:b.label, startTime:b.startTime, stopTime:b.stopTime, startMins:b.startMins, endMins:b.endMins, duration:b.duration, over:b.over||0, color:b.color||'#f59e0b' }));
+    j.breakLog = JSON.stringify(inWindow);
+  });
+
   const key = 'emb_jobs_' + new Date().toISOString().slice(0,10);
   const existing = JSON.parse(localStorage.getItem(key) || '[]');
   localStorage.setItem(key, JSON.stringify([...existing, ...unsaved]));
@@ -2005,63 +2032,31 @@ function renderTimeline() {
   const span = axisEnd - axisStart;
   if (span <= 0) { el.innerHTML = '<div class="tl-empty">Shift window not set.</div>'; return; }
 
-  // Build all events sorted by time
-  const events = [
-    ...blocks.map(b => ({ type:'job', start:b.start, end:b.end, blk:b })),
-    ...breakLog.map(b => ({ type:'break', start:b.startMins, end:b.endMins, brk:b })),
-    ...(activeBrk ? [{ type:'active', start:activeBrk.startMins, end:clampedNow, brk:activeBrk }] : [])
-  ].sort((a,b) => a.start - b.start);
+  const wpct = m => (m / span * 100).toFixed(3);
 
-  const wpct = m => (m / span * 100).toFixed(2);
-
+  // ── BOTTOM LAYER: jobs + changeovers + gaps (breaks NOT drawn here) ──
   let segs = '';
   let cursor = axisStart;
-  const jobEvents = events.filter(e => e.type === 'job');
-  let jobsSeen = 0;
 
-  events.forEach(evt => {
-    if (evt.type === 'job') {
-      const blk = evt.blk;
-      const coMins  = blk.co || 0;
-      const coStart = blk.start - coMins;
+  blocks.forEach((blk, i) => {
+    const coMins  = blk.co || 0;
+    const coStart = blk.start - coMins;
+    const segStart = coMins > 0 ? coStart : blk.start;
 
-      // gap before changeover/job
-      const segStart = coMins > 0 ? coStart : blk.start;
-      if (segStart > cursor) {
-        segs += `<div class="tl-seg gap-seg" style="width:${wpct(segStart-cursor)}%;" title="Gap - ${fmtMin(segStart-cursor)}"></div>`;
-        cursor = segStart;
-      }
-      // changeover block (dark navy) before job
-      if (coMins > 0) {
-        segs += `<div class="tl-seg" style="width:${wpct(coMins)}%;background:#1a2e4a;" title="Changeover - Job ${blk.label} - ${coMins}min"><span style="font-size:9px;color:rgba(255,255,255,0.7);">CO</span></div>`;
-        cursor += coMins;
-      }
-      // job block (blue) with 3px separator unless last job
-      jobsSeen++;
-      const isLast = jobsSeen === jobEvents.length;
-      segs += `<div class="tl-seg" style="width:${wpct(blk.end-blk.start)}%;background:#2563eb;${!isLast ? 'border-right:3px solid #0f172a;' : ''}" title="Job ${blk.label}: ${fmt12(blk.start)}-${fmt12(blk.end)} - ${fmtMin(blk.end-blk.start)}"><span>${blk.label}</span></div>`;
-      cursor = blk.end;
-
-    } else if (evt.type === 'break') {
-      const b = evt.brk;
-      if (b.startMins > cursor) {
-        segs += `<div class="tl-seg gap-seg" style="width:${wpct(b.startMins-cursor)}%;"></div>`;
-        cursor = b.startMins;
-      }
-      const bColor = b.color || '#f59e0b';
-      segs += `<div class="tl-seg" style="width:${wpct(Math.max(b.endMins-b.startMins,1))}%;background:${bColor};" title="${b.label} - ${b.startTime} to ${b.stopTime} - ${b.duration}min"><span style="font-size:10px;font-weight:700;color:#fff;">B</span></div>`;
-      cursor = b.endMins;
-
-    } else if (evt.type === 'active') {
-      const b = evt.brk;
-      if (b.startMins > cursor) {
-        segs += `<div class="tl-seg gap-seg" style="width:${wpct(b.startMins-cursor)}%;"></div>`;
-        cursor = b.startMins;
-      }
-      const elapsed = Math.round((Date.now() - b.startedAt) / 60000);
-      segs += `<div class="tl-seg" style="width:${wpct(Math.max(clampedNow-b.startMins,1))}%;background:#f59e0b;animation:pulse 1.5s infinite;" title="On break now - ${elapsed}min"><span style="font-size:10px;font-weight:700;color:#fff;">B ${elapsed}m</span></div>`;
-      cursor = clampedNow;
+    // gap before changeover/job
+    if (segStart > cursor) {
+      segs += `<div class="tl-seg gap-seg" style="width:${wpct(segStart-cursor)}%;" title="Gap - ${fmtMin(segStart-cursor)}"></div>`;
+      cursor = segStart;
     }
+    // changeover block (dark navy) before job
+    if (coMins > 0 && coStart >= axisStart) {
+      segs += `<div class="tl-seg" style="width:${wpct(coMins)}%;background:#1a2e4a;" title="Changeover - Job ${blk.label} - ${coMins}min"><span style="font-size:9px;color:rgba(255,255,255,0.7);">CO</span></div>`;
+      cursor += coMins;
+    }
+    // job block (blue), full length by clock time, 3px separator unless last
+    const isLast = i === blocks.length - 1;
+    segs += `<div class="tl-seg" style="width:${wpct(blk.end-blk.start)}%;background:#2563eb;${!isLast ? 'border-right:3px solid #0f172a;' : ''}" title="Job ${blk.label}: ${fmt12(blk.start)}-${fmt12(blk.end)} - ${fmtMin(blk.end-blk.start)}"><span>${blk.label}</span></div>`;
+    cursor = blk.end;
   });
 
   // gap to now
@@ -2072,6 +2067,23 @@ function renderTimeline() {
   // rest of shift (hatched)
   if (axisEnd > cursor) {
     segs += `<div class="tl-seg future-seg" style="width:${wpct(axisEnd-cursor)}%;" title="Rest of shift"></div>`;
+  }
+
+  // ── TOP LAYER: breaks overlaid absolutely by clock position ──
+  let breakOverlay = '';
+  breakLog.forEach(b => {
+    const left = ((b.startMins - axisStart) / span * 100);
+    const width = Math.max(((b.endMins - b.startMins) / span * 100), 1.2);
+    const bColor = b.color || '#f59e0b';
+    const overNote = (b.over && b.over > 3) ? ` (${b.over}min over)` : '';
+    breakOverlay += `<div class="tl-break-overlay" style="left:${left.toFixed(3)}%;width:${width.toFixed(3)}%;background:${bColor};" title="${b.label} - ${b.startTime} to ${b.stopTime}${overNote}"><span>B</span></div>`;
+  });
+  // active (ongoing) break overlay
+  if (activeBrk) {
+    const left = ((activeBrk.startMins - axisStart) / span * 100);
+    const width = Math.max(((clampedNow - activeBrk.startMins) / span * 100), 1.2);
+    const elapsed = Math.round((Date.now() - activeBrk.startedAt) / 60000);
+    breakOverlay += `<div class="tl-break-overlay" style="left:${left.toFixed(3)}%;width:${width.toFixed(3)}%;background:#f59e0b;animation:pulse 1.5s infinite;" title="On break now - started ${activeBrk.startTime} - ${elapsed}min"><span>B ${elapsed}m</span></div>`;
   }
 
   // Axis labels
@@ -2102,7 +2114,7 @@ function renderTimeline() {
 
   el.innerHTML =
     `<div class="tl-axis">${axisLabels}</div>` +
-    `<div class="tl-bar">${segs}</div>` +
+    `<div class="tl-bar-wrap"><div class="tl-bar">${segs}</div>${breakOverlay}</div>` +
     `<div class="tl-legend">${legend}</div>` +
     `<div class="tl-pills">${pills}</div>`;
 }

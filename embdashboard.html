@@ -203,6 +203,11 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
   border: 4px solid transparent; border-top-color: var(--navy);
 }
 .tl-seg-wrap:hover .tl-tooltip { display: block; }
+.tl-break-ov { position: absolute; top: -3px; height: 30px; z-index: 5; display: flex; align-items: center; justify-content: center; border-radius: 3px; box-shadow: 0 1px 4px rgba(0,0,0,0.25); border: 1.5px solid #fff; min-width: 8px; cursor: default; }
+.tl-break-ov span { font-size: 9px; font-weight: 800; color: #fff; }
+.tl-break-ov .tl-tooltip { top: calc(100% + 6px); bottom: auto; }
+.tl-break-ov .tl-tooltip::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: var(--navy); }
+.tl-break-ov:hover .tl-tooltip { display: block; }
 </style>
 </head>
 <body>
@@ -842,7 +847,7 @@ function renderOpDetail() {
           <span><b style="color:var(--text);">${dayPcs}/${DAILY_TARGET}</b> pcs</span>
           <span><b style="color:var(--text);">${dayHours.label}</b> worked</span>
           ${dayDmg > 0 ? `<span style="color:var(--amber);font-weight:600;">⚠ ${dayDmg} dmg</span>` : '<span>0 dmg</span>'}
-          ${(() => { const bl = getBreakLogForDate(date, opData); const over = bl.filter(b => (b.over||0) > 3); return over.length > 0 ? `<span style="background:#fff7ed;color:#f97316;font-weight:700;padding:2px 7px;border-radius:10px;">⏰ ${over.length} break over</span>` : ''; })()}
+          ${(() => { const bl = getBreakLogForDate(date, dayProd); const over = bl.filter(b => (b.over||0) > 3); return over.length > 0 ? `<span style="background:#fff7ed;color:#f97316;font-weight:700;padding:2px 7px;border-radius:10px;">⏰ ${over.length} break over</span>` : ''; })()}
           <span style="font-weight:700;color:${perfColor};">${perf}% of target</span>
           <span style="font-weight:700;color:var(--green);">$${dayRev.toFixed(2)}</span>
           ${conflicts.length > 0 ? `<span style="background:#fee2e2;color:var(--red);font-weight:700;padding:2px 7px;border-radius:10px;">⚠ ${conflicts.length} time conflict${conflicts.length>1?'s':''}</span>` : ''}
@@ -863,7 +868,15 @@ function renderOpDetail() {
             const chip = j.isShay ? chipFor(j) : '';
             const netM = parseInt(j.netElapsed||j.elapsed)||0;
             const jPcsHr = netM > 0 ? ((parseInt(j.qty)||0)/netM*60).toFixed(1) : '—';
-            const deductStr = parseInt(j.deduct) > 0 ? ` · −${j.deduct}m breaks` : '';
+            let deductStr = '';
+            if (j.breakLog) {
+              try {
+                const bl = typeof j.breakLog === 'string' ? JSON.parse(j.breakLog) : j.breakLog;
+                if (Array.isArray(bl) && bl.length) {
+                  deductStr = ' · breaks: ' + bl.map(b => `${b.startTime}–${b.stopTime}`).join(', ');
+                }
+              } catch(e) {}
+            }
             const jDmg = parseInt(j.damages)||0;
             // Cumulative pcs up to and including this job (sorted by start time)
             const sortedForCumul = [...dayProd].sort((a,b) => (parseTimeStr(a.startTime)||0) - (parseTimeStr(b.startTime)||0));
@@ -913,11 +926,18 @@ function renderOpDetail() {
 }
 
 // ── GET BREAK LOG FOR A DATE from job data
-function getBreakLogForDate(date, allOpData) {
-  // Break log is stored in localStorage on the tracker device
-  // On dashboard we infer from the saved jobs' break data
-  // For now return empty — break overtime shows when data includes it
-  return [];
+function getBreakLogForDate(date, dayJobs) {
+  // Read breaks stored with each job
+  const breaks = [];
+  (dayJobs || []).forEach(j => {
+    if (j.breakLog) {
+      try {
+        const bl = typeof j.breakLog === 'string' ? JSON.parse(j.breakLog) : j.breakLog;
+        if (Array.isArray(bl)) bl.forEach(b => breaks.push(b));
+      } catch(e) {}
+    }
+  });
+  return breaks;
 }
 
 // ── DETECT TIME CONFLICTS on same machine same day
@@ -948,30 +968,40 @@ function detectConflicts(dayProd) {
 function buildTimelineBar(dayProd, date) {
   if (!dayProd.length) return '';
 
-  // Parse all start/stop times to minutes
   const jobBlocks = [];
   let shiftStart = Infinity, shiftEnd = 0;
+  const allBreaks = [];
 
   dayProd.forEach(j => {
     const s = parseTimeStr(j.startTime);
     const e = parseTimeStr(j.stopTime);
     if (s !== null && e !== null && e > s) {
-      jobBlocks.push({ start: s, end: e, label: j.jobNum, co: parseInt(j.changeover)||0, deduct: parseInt(j.deduct)||0 });
+      jobBlocks.push({ start: s, end: e, label: j.jobNum, co: parseInt(j.changeover)||0 });
       if (s < shiftStart) shiftStart = s;
       if (e > shiftEnd)   shiftEnd   = e;
+    }
+    // collect breaks stored with the job
+    if (j.breakLog) {
+      try {
+        const bl = typeof j.breakLog === 'string' ? JSON.parse(j.breakLog) : j.breakLog;
+        if (Array.isArray(bl)) bl.forEach(b => allBreaks.push(b));
+      } catch(e) {}
     }
   });
 
   if (!jobBlocks.length || shiftStart === Infinity) return '';
 
-  // Always start timeline at 8:00 AM
-  const SHIFT_START = 8 * 60; // 8:00 AM in minutes
+  const SHIFT_START = 8 * 60;
   shiftStart = Math.min(shiftStart, SHIFT_START);
+  // expand to include breaks outside job windows
+  allBreaks.forEach(b => {
+    if (b.startMins < shiftStart) shiftStart = b.startMins;
+    if (b.endMins   > shiftEnd)   shiftEnd   = b.endMins;
+  });
 
   const totalSpan = shiftEnd - shiftStart;
   if (totalSpan <= 0) return '';
 
-  const pct = mins => ((mins / totalSpan) * 100).toFixed(1) + '%';
   const fmt12 = mins => {
     let h = Math.floor(mins/60), m = mins%60, ap = 'AM';
     if (h >= 12) { ap = 'PM'; if (h > 12) h -= 12; }
@@ -979,24 +1009,31 @@ function buildTimelineBar(dayProd, date) {
     return `${h}:${m.toString().padStart(2,'0')} ${ap}`;
   };
 
-  // Build segments
-  let segments = '';
-  let cursor = shiftStart;
   const sorted = [...jobBlocks].sort((a,b)=>a.start-b.start);
 
+  // ── BOTTOM LAYER: jobs + changeovers + gaps ──
+  let segments = '';
+  let cursor = shiftStart;
+
   sorted.forEach((blk, i) => {
-    if (blk.start > cursor) {
-      // gap
-      const w = ((blk.start - cursor) / totalSpan * 100).toFixed(1);
-      segments += `<div style="width:${w}%;background:#e2e8f0;height:100%;display:flex;align-items:center;justify-content:center;" title="Gap: ${fmtMin(blk.start-cursor)}"></div>`;
+    const coMins = blk.co || 0;
+    const coStart = blk.start - coMins;
+    const segStart = coMins > 0 ? coStart : blk.start;
+
+    if (segStart > cursor) {
+      const w = ((segStart - cursor) / totalSpan * 100).toFixed(2);
+      segments += `<div class="tl-seg-wrap" style="width:${w}%;"><div style="width:100%;background:#e2e8f0;height:100%;"></div><div class="tl-tooltip">Gap<br>${fmt12(cursor)} → ${fmt12(segStart)}<br>${fmtMin(segStart-cursor)}</div></div>`;
+      cursor = segStart;
     }
-    // job block
-    const w = ((blk.end - blk.start) / totalSpan * 100).toFixed(1);
-    const colors = ['#2563eb','#0891b2','#7c3aed','#059669','#dc2626','#d97706'];
-    const c = colors[i % colors.length];
+    if (coMins > 0 && coStart >= shiftStart) {
+      const cw = (coMins / totalSpan * 100).toFixed(2);
+      segments += `<div class="tl-seg-wrap" style="width:${cw}%;"><div style="width:100%;background:#1a2e4a;height:100%;display:flex;align-items:center;justify-content:center;"><span style="font-size:9px;color:rgba(255,255,255,0.7);">CO</span></div><div class="tl-tooltip">Changeover · Job ${blk.label}<br>${coMins}min</div></div>`;
+      cursor += coMins;
+    }
+    const w = ((blk.end - blk.start) / totalSpan * 100).toFixed(2);
     const isLast = i === sorted.length - 1;
     segments += `<div class="tl-seg-wrap" style="width:${w}%;">
-      <div style="width:100%;background:#2563eb;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;${!isLast ? 'border-right:3px solid #1a2e4a;' : ''}">
+      <div style="width:100%;background:#2563eb;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;${!isLast ? 'border-right:3px solid #0f172a;' : ''}">
         <span style="font-size:10px;font-weight:700;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 3px;">${blk.label}</span>
       </div>
       <div class="tl-tooltip">Job ${blk.label}<br>${fmt12(blk.start)} → ${fmt12(blk.end)}<br>${fmtMin(blk.end-blk.start)}</div>
@@ -1005,9 +1042,19 @@ function buildTimelineBar(dayProd, date) {
   });
 
   if (cursor < shiftEnd) {
-    const w = ((shiftEnd - cursor) / totalSpan * 100).toFixed(1);
+    const w = ((shiftEnd - cursor) / totalSpan * 100).toFixed(2);
     segments += `<div style="width:${w}%;background:#e2e8f0;height:100%;"></div>`;
   }
+
+  // ── TOP LAYER: break overlays positioned by clock time ──
+  let breakOverlay = '';
+  allBreaks.forEach(b => {
+    const left  = ((b.startMins - shiftStart) / totalSpan * 100);
+    const width = Math.max(((b.endMins - b.startMins) / totalSpan * 100), 1.2);
+    const bColor = b.color || '#f59e0b';
+    const overNote = (b.over && b.over > 3) ? ` (${b.over}min over)` : '';
+    breakOverlay += `<div class="tl-break-ov" style="left:${left.toFixed(2)}%;width:${width.toFixed(2)}%;background:${bColor};"><span>B</span><div class="tl-tooltip">${b.label}<br>${b.startTime} → ${b.stopTime}${overNote}</div></div>`;
+  });
 
   return `<div style="padding:8px 16px 10px;">
     <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:3px;">
@@ -1015,17 +1062,16 @@ function buildTimelineBar(dayProd, date) {
       <span style="font-size:10px;color:var(--muted);">Shift Timeline</span>
       <span>${fmt12(shiftEnd)}</span>
     </div>
-    <div style="display:flex;height:24px;border-radius:6px;overflow:hidden;border:1px solid var(--border);">
-      ${segments}
+    <div style="position:relative;">
+      <div style="display:flex;height:24px;border-radius:6px;overflow:hidden;border:1px solid var(--border);">
+        ${segments}
+      </div>
+      ${breakOverlay}
     </div>
     <div style="display:flex;gap:12px;margin-top:6px;flex-wrap:wrap;">
-      ${sorted.map((blk,i)=>{
-        const colors=['#2563eb','#0891b2','#7c3aed','#059669','#dc2626','#d97706'];
-        return `<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);">
-          <div style="width:8px;height:8px;border-radius:2px;background:${colors[i%colors.length]};flex-shrink:0;"></div>
-          Job ${blk.label} · ${fmtMin(blk.end-blk.start)}
-        </div>`;
-      }).join('')}
+      <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);"><div style="width:8px;height:8px;border-radius:2px;background:#2563eb;flex-shrink:0;"></div>Job</div>
+      <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);"><div style="width:8px;height:8px;border-radius:2px;background:#1a2e4a;flex-shrink:0;"></div>Changeover</div>
+      ${allBreaks.length ? '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);"><div style="width:8px;height:8px;border-radius:2px;background:#f59e0b;flex-shrink:0;"></div>Break</div>' : ''}
       <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);">
         <div style="width:8px;height:8px;border-radius:2px;background:#e2e8f0;flex-shrink:0;"></div>
         Gap / untracked
