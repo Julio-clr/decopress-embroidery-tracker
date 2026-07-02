@@ -484,6 +484,7 @@ textarea { resize: vertical; min-height: 50px; }
 .tl-pill-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .tl-empty { text-align: center; color: var(--muted); font-size: 12px; padding: 16px; }
 @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.6; } }
+@keyframes bannerPulse { 0%,100% { box-shadow:0 4px 16px rgba(234,88,12,0.3); } 50% { box-shadow:0 4px 28px rgba(234,88,12,0.55); } }
 </style>
 </head>
 <body>
@@ -570,9 +571,15 @@ textarea { resize: vertical; min-height: 50px; }
       <div class="tl-title-row">
         <div class="tl-dot"></div>
         <div class="tl-title">Today's Shift Timeline</div>
+        <div id="tlShiftWindow" style="font-size:12px;font-weight:600;color:var(--muted);margin-left:8px;">8:00 AM - 5:00 PM</div>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div class="tl-sub" id="tlSub">Add jobs to see your shift timeline</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <!-- On-break pill (left of button, hidden until on break) -->
+        <div id="onBreakPill" style="display:none;align-items:center;gap:8px;background:#fff7ed;border:1.5px solid #fdba74;border-radius:6px;padding:5px 12px;">
+          <span style="font-size:11px;font-weight:800;color:#ea580c;">⏸ ON BREAK</span>
+          <span id="onBreakPillDetail" style="font-size:11px;color:#9a3412;font-weight:600;">—</span>
+          <span id="onBreakPillTimer" style="font-size:13px;font-weight:800;color:#ea580c;">0:00</span>
+        </div>
         <button onclick="handleBreakBtn()" id="logBreakBtn" style="background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">⏸ Log Break</button>
       </div>
     </div>
@@ -1398,18 +1405,54 @@ function handleBreakBtn() {
   }
 }
 
+let breakTickInterval = null;
+
 function updateBreakBtn() {
   const active = getActiveBreak();
   const btn = document.getElementById('logBreakBtn');
-  if (!btn) return;
+  const pill = document.getElementById('onBreakPill');
+
   if (active) {
-    const elapsed = Math.round((Date.now() - active.startedAt) / 60000);
-    btn.textContent = `▶ End Break (${elapsed}m)`;
-    btn.style.background = '#dc2626';
+    // Log Break button becomes I'M BACK
+    if (btn) {
+      btn.textContent = "▶ I'M BACK";
+      btn.style.background = '#dc2626';
+    }
+    // Show on-break pill to the left
+    if (pill) {
+      pill.style.display = 'flex';
+      const detail = document.getElementById('onBreakPillDetail');
+      if (detail) detail.textContent = `${active.label} · left ${active.startTime}`;
+      startBreakTick();
+    }
   } else {
-    btn.textContent = '⏸ Log Break';
-    btn.style.background = '#f59e0b';
+    if (btn) {
+      btn.textContent = '⏸ Log Break';
+      btn.style.background = '#f59e0b';
+    }
+    if (pill) pill.style.display = 'none';
+    stopBreakTick();
   }
+}
+
+function startBreakTick() {
+  stopBreakTick();
+  updateBreakTimer();
+  breakTickInterval = setInterval(updateBreakTimer, 1000);
+}
+
+function stopBreakTick() {
+  if (breakTickInterval) { clearInterval(breakTickInterval); breakTickInterval = null; }
+}
+
+function updateBreakTimer() {
+  const active = getActiveBreak();
+  const timerEl = document.getElementById('onBreakPillTimer');
+  if (!active) { stopBreakTick(); return; }
+  const totalSec = Math.floor((Date.now() - active.startedAt) / 1000);
+  const mm = Math.floor(totalSec / 60);
+  const ss = totalSec % 60;
+  if (timerEl) timerEl.textContent = `${mm}:${ss.toString().padStart(2,'0')}`;
 }
 
 function logBreak(brkId) {
@@ -1892,15 +1935,27 @@ async function saveAll() {
   if (!v('hOperator')) { showAlert('Select an operator first.', 'bad'); return; }
   if (!v('hMachine'))  { showAlert('Select a machine first.', 'bad'); return; }
 
-  // Attach the breaks that fall within each job's window (so dashboard can draw them)
-  const allBreaks = getBreakLog();
-  unsaved.forEach(j => {
+  // Attach ALL of today's breaks to the jobs being saved so the dashboard
+  // sees every break, whether or not it overlapped a job window.
+  // Full day break list goes on the FIRST unsaved job; others get their in-window breaks
+  // (so the tracker job-log line still shows the right break next to each job).
+  const allBreaks = getBreakLog().map(b => ({
+    label:b.label, startTime:b.startTime, stopTime:b.stopTime,
+    startMins:b.startMins, endMins:b.endMins, duration:b.duration,
+    over:b.over||0, color:b.color||'#f59e0b'
+  }));
+  unsaved.forEach((j, idx) => {
     const js = (j.startMins!==undefined&&j.startMins!=='') ? parseInt(j.startMins) : parseTimeStr(j.startTime);
     const je = (j.stopMins!==undefined&&j.stopMins!=='') ? parseInt(j.stopMins) : parseTimeStr(j.stopTime);
-    if (js === null || je === null) { j.breakLog = ''; return; }
-    const inWindow = allBreaks.filter(b => b.startMins >= js && b.startMins < je)
-      .map(b => ({ label:b.label, startTime:b.startTime, stopTime:b.stopTime, startMins:b.startMins, endMins:b.endMins, duration:b.duration, over:b.over||0, color:b.color||'#f59e0b' }));
-    j.breakLog = JSON.stringify(inWindow);
+    // First job carries the full day's break list (for the dashboard timeline)
+    if (idx === 0) {
+      j.breakLog = JSON.stringify(allBreaks);
+    } else if (js !== null && je !== null) {
+      const inWindow = allBreaks.filter(b => b.startMins >= js && b.startMins < je);
+      j.breakLog = JSON.stringify(inWindow);
+    } else {
+      j.breakLog = '';
+    }
   });
 
   const key = 'emb_jobs_' + new Date().toISOString().slice(0,10);
@@ -1933,15 +1988,15 @@ async function saveAll() {
 // ═══════════════════════════════════════════════
 // Shift schedule — hardcoded defaults, overwritten by CONFIG when loaded
 // Default: Mon-Fri 8:30 AM - 4:30 PM, Sat 5:00 AM - 1:00 PM
-const DEFAULT_SHIFT = { start: 8 * 60, end: 16 * 60 + 30 };
+const DEFAULT_SHIFT = { start: 8 * 60, end: 17 * 60 };
 let shiftSchedule = {
-  Monday:    { start: 8*60, end: 16*60+30 },
-  Tuesday:   { start: 8*60, end: 16*60+30 },
-  Wednesday: { start: 8*60, end: 16*60+30 },
-  Thursday:  { start: 8*60, end: 16*60+30 },
-  Friday:    { start: 8*60, end: 16*60+30 },
-  Saturday:  { start: 5*60, end: 13*60    },
-  Sunday:    { start: 8*60, end: 16*60+30 },
+  Monday:    { start: 8*60, end: 17*60 },
+  Tuesday:   { start: 8*60, end: 17*60 },
+  Wednesday: { start: 8*60, end: 17*60 },
+  Thursday:  { start: 8*60, end: 17*60 },
+  Friday:    { start: 8*60, end: 17*60 },
+  Saturday:  { start: 5*60, end: 13*60 },
+  Sunday:    { start: 8*60, end: 17*60 },
 };
 
 function getTodayShift() {
@@ -2101,16 +2156,29 @@ function renderTimeline() {
   legend += `<div class="tl-leg"><div class="tl-leg-dot" style="background:#e2e8f0;border:1px solid #cbd5e1;"></div>Gap</div>`;
   if (breakLog.length || activeBrk) legend += `<div class="tl-leg"><div class="tl-leg-dot" style="background:#f59e0b;"></div>Break</div>`;
 
-  // Breakdown pills
+  // Breakdown: production pill + per-break list
   const totalProd = blocks.reduce((a,b) => a + (b.end - b.start), 0);
-  const totalBreakMins = breakLog.reduce((a,b) => a + (b.duration||0), 0);
-  const pills =
-    `<div class="tl-pill"><div class="tl-pill-dot" style="background:var(--accent);"></div>Production: ${fmtMin(totalProd)}</div>` +
-    (totalBreakMins > 0 ? `<div class="tl-pill" style="border-color:#fcd34d;"><div class="tl-pill-dot" style="background:#f59e0b;"></div>Breaks: ${fmtMin(totalBreakMins)}</div>` : '');
+  let pills = `<div class="tl-pill"><div class="tl-pill-dot" style="background:var(--accent);"></div>Production: ${fmtMin(totalProd)}</div>`;
 
-  subEl.textContent = blocks.length
-    ? `${blocks.length} job${blocks.length!==1?'s':''} - ${fmt12(axisStart)} to ${fmt12(clampedNow)}`
-    : `Shift ${fmt12(shiftStartMins)} - ${fmt12(shiftEndMins)}`;
+  // List each break with its time range and duration
+  const sortedBreaks = [...breakLog].sort((a,b) => a.startMins - b.startMins);
+  sortedBreaks.forEach((b, i) => {
+    const overNote = (b.over && b.over > 3) ? ` · ${b.over}m over` : '';
+    const pillColor = b.color || '#f59e0b';
+    pills += `<div class="tl-pill" style="border-color:#fcd34d;"><div class="tl-pill-dot" style="background:${pillColor};"></div>${b.label}: ${b.startTime} - ${b.stopTime} (${b.duration}min${overNote})</div>`;
+  });
+  // Active break (still ongoing)
+  if (activeBrk) {
+    const elapsed = Math.round((Date.now() - activeBrk.startedAt)/60000);
+    pills += `<div class="tl-pill" style="border-color:#fcd34d;"><div class="tl-pill-dot" style="background:#f59e0b;"></div>${activeBrk.label}: ${activeBrk.startTime} - now (${elapsed}min, ongoing)</div>`;
+  }
+
+  if (subEl) subEl.textContent = blocks.length
+    ? `${blocks.length} job${blocks.length!==1?'s':''} logged`
+    : 'No jobs logged yet';
+  // Update shift window text next to title
+  const swEl = document.getElementById('tlShiftWindow');
+  if (swEl) swEl.textContent = `${fmt12(shiftStartMins)} - ${fmt12(shiftEndMins)}`;
 
   el.innerHTML =
     `<div class="tl-axis">${axisLabels}</div>` +

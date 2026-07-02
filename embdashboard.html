@@ -857,6 +857,21 @@ function renderOpDetail() {
       <!-- TIMELINE BAR -->
       ${timelineBar}
 
+      <!-- BREAK BREAKDOWN -->
+      ${(() => {
+        const bl = getBreakLogForDate(date, dayProd).sort((a,b) => a.startMins - b.startMins);
+        if (!bl.length) return '';
+        const items = bl.map(b => {
+          const over = (b.over && b.over > 3) ? ` · ${b.over}m over` : '';
+          const c = b.color || '#f59e0b';
+          return `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);">
+            <div style="width:8px;height:8px;border-radius:2px;background:${c};flex-shrink:0;"></div>
+            ${b.label}: ${b.startTime} – ${b.stopTime} (${b.duration}min${over})
+          </div>`;
+        }).join('');
+        return `<div style="padding:2px 16px 10px;display:flex;gap:14px;flex-wrap:wrap;">${items}</div>`;
+      })()}
+
       <!-- JOB ROWS -->
       <table class="detail-table">
         <thead><tr>
@@ -927,13 +942,17 @@ function renderOpDetail() {
 
 // ── GET BREAK LOG FOR A DATE from job data
 function getBreakLogForDate(date, dayJobs) {
-  // Read breaks stored with each job
+  // Read breaks stored with each job, de-duped
   const breaks = [];
+  const seen = {};
   (dayJobs || []).forEach(j => {
     if (j.breakLog) {
       try {
         const bl = typeof j.breakLog === 'string' ? JSON.parse(j.breakLog) : j.breakLog;
-        if (Array.isArray(bl)) bl.forEach(b => breaks.push(b));
+        if (Array.isArray(bl)) bl.forEach(b => {
+          const key = b.startMins + '_' + b.endMins + '_' + b.label;
+          if (!seen[key]) { seen[key] = true; breaks.push(b); }
+        });
       } catch(e) {}
     }
   });
@@ -988,6 +1007,16 @@ function buildTimelineBar(dayProd, date) {
       } catch(e) {}
     }
   });
+
+  // De-dupe breaks (same break may be attached to multiple jobs)
+  const seenBreaks = {};
+  const dedupBreaks = [];
+  allBreaks.forEach(b => {
+    const key = b.startMins + '_' + b.endMins + '_' + b.label;
+    if (!seenBreaks[key]) { seenBreaks[key] = true; dedupBreaks.push(b); }
+  });
+  allBreaks.length = 0;
+  dedupBreaks.forEach(b => allBreaks.push(b));
 
   if (!jobBlocks.length || shiftStart === Infinity) return '';
 
