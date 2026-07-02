@@ -757,17 +757,7 @@ textarea { resize: vertical; min-height: 50px; }
           </div>
           <div class="fg">
             <label>Unit $ <span class="req">*</span></label>
-            <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:5px;align-items:center;">
-              <select id="fPriceDollars" onchange="updateUnitPrice()">
-                <option value="">$</option>
-                ${''}
-              </select>
-              <span style="font-weight:700;color:var(--muted);">.</span>
-              <select id="fPriceCents" onchange="updateUnitPrice()">
-                <option value="">¢</option>
-              </select>
-            </div>
-            <input type="hidden" id="fUnitPrice" />
+            <input type="number" id="fUnitPrice" placeholder="0.00" min="0" step="0.01" oninput="calcTotalRevenue()" />
           </div>
         </div>
 
@@ -849,7 +839,7 @@ textarea { resize: vertical; min-height: 50px; }
         <div class="row c3">
           <div class="fg">
             <label>Machine Runtime (min) <span class="req">*</span></label>
-            <select id="fRuntime"><option value="">— Select —</option></select>
+            <input type="number" id="fRuntime" placeholder="Stitch time in minutes" min="1" />
           </div>
           <div class="fg">
             <label>Changeover <span class="req">*</span></label>
@@ -991,41 +981,13 @@ const tpState = {
 };
 
 function populateNumberDropdowns() {
-  // Unit $ dollars 0-20
-  const dollars = document.getElementById('fPriceDollars');
-  if (dollars) {
-    dollars.innerHTML = '<option value="">$</option>';
-    for (let d = 0; d <= 20; d++) dollars.innerHTML += `<option value="${d}">$${d}</option>`;
-  }
-  // Unit $ cents 0-95 in 5c steps
-  const cents = document.getElementById('fPriceCents');
-  if (cents) {
-    cents.innerHTML = '<option value="">¢</option>';
-    for (let c = 0; c <= 95; c += 5) cents.innerHTML += `<option value="${c}">${c.toString().padStart(2,'0')}</option>`;
-  }
   // Damages 0-30
   const dmg = document.getElementById('fDamages');
   if (dmg) {
     dmg.innerHTML = '';
     for (let n = 0; n <= 30; n++) dmg.innerHTML += `<option value="${n}"${n===0?' selected':''}>${n}</option>`;
   }
-  // Machine Runtime 1-40
-  const rt = document.getElementById('fRuntime');
-  if (rt) {
-    rt.innerHTML = '<option value="">— Select —</option>';
-    for (let m = 1; m <= 40; m++) rt.innerHTML += `<option value="${m}">${m} min</option>`;
-  }
-}
-
-function updateUnitPrice() {
-  const d = document.getElementById('fPriceDollars')?.value;
-  const c = document.getElementById('fPriceCents')?.value;
-  const hidden = document.getElementById('fUnitPrice');
-  if (d === '' && c === '') { hidden.value = ''; calcTotalRevenue(); return; }
-  const dollars = parseInt(d) || 0;
-  const cents   = parseInt(c) || 0;
-  hidden.value = (dollars + cents/100).toFixed(2);
-  calcTotalRevenue();
+  // Machine Runtime is a number box now (no dropdown to populate)
 }
 
 function initTimePickers() {
@@ -1166,24 +1128,35 @@ function addAsset() {
   const placements = Array.from(document.getElementById('fPlacement').options)
     .filter(o => o.value).map(o => o.value);
 
-  let dollarOpts = '';
-  for (let d = 0; d <= 20; d++) dollarOpts += `<option value="${d}">$${d}</option>`;
-  let centOpts = '';
-  for (let c = 0; c <= 95; c += 5) centOpts += `<option value="${c}">${c.toString().padStart(2,'0')}</option>`;
-
   const id = Date.now();
   assets.push({ id, qty: '', unitPrice: '', placement: '' });
 
   const container = document.getElementById('assetsContainer');
   const div = document.createElement('div');
   div.id = 'asset_' + id;
-  div.style.cssText = 'background:#f8fafc;border:1px solid var(--border);border-radius:7px;padding:10px 12px;margin-bottom:8px;';
+  div.style.cssText = 'background:#f8fafc;border:1px solid var(--border);border-radius:7px;padding:12px 14px;margin-bottom:8px;';
   div.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
       <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;">Additional Asset</span>
       <button onclick="removeAsset(${id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 5px;border-radius:4px;" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'">✕</button>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+    <!-- Row 1: Machine Runtime · Changeover · Placement -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;">
+      <div class="fg">
+        <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);">Machine Runtime (min) *</label>
+        <input type="number" id="aRuntime_${id}" placeholder="Stitch time in minutes" min="1" style="border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:13px;width:100%;" />
+      </div>
+      <div class="fg">
+        <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);">Changeover *</label>
+        <select id="aChangeover_${id}" style="border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:13px;width:100%;">
+          <option value="">— Select —</option>
+          <option value="10">10 min</option>
+          <option value="15">15 min</option>
+          <option value="20">20 min</option>
+          <option value="25">25 min</option>
+          <option value="30">30 min</option>
+        </select>
+      </div>
       <div class="fg">
         <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);">Placement *</label>
         <select id="aPlacement_${id}" style="border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:13px;width:100%;">
@@ -1191,21 +1164,16 @@ function addAsset() {
           ${placements.map(p => `<option value="${p}">${p}</option>`).join('')}
         </select>
       </div>
+    </div>
+    <!-- Row 2: Qty · Unit $ -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
       <div class="fg">
-        <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);">Qty *</label>
-        <input type="number" id="aQty_${id}" placeholder="Pcs" min="1" style="border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:13px;width:100%;" oninput="calcTotalRevenue()" />
+        <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);">Unit Qty *</label>
+        <input type="number" id="aQty_${id}" placeholder="Pcs completed" min="1" style="border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:13px;width:100%;" oninput="calcTotalRevenue()" />
       </div>
       <div class="fg">
         <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);">Unit $ *</label>
-        <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:4px;align-items:center;">
-          <select id="aDollars_${id}" onchange="calcTotalRevenue()" style="border:1px solid var(--border);border-radius:5px;padding:7px 4px;font-size:13px;">
-            <option value="">$</option>${dollarOpts}
-          </select>
-          <span style="font-weight:700;color:var(--muted);font-size:12px;">.</span>
-          <select id="aCents_${id}" onchange="calcTotalRevenue()" style="border:1px solid var(--border);border-radius:5px;padding:7px 4px;font-size:13px;">
-            <option value="">¢</option>${centOpts}
-          </select>
-        </div>
+        <input type="number" id="aPrice_${id}" placeholder="0.00" min="0" step="0.01" style="border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:13px;width:100%;" oninput="calcTotalRevenue()" />
       </div>
     </div>`;
   container.appendChild(div);
@@ -1219,12 +1187,12 @@ function removeAsset(id) {
 
 function getAssets() {
   return assets.map(a => {
-    const placement = document.getElementById('aPlacement_' + a.id)?.value || '';
-    const qty       = parseInt(document.getElementById('aQty_' + a.id)?.value) || 0;
-    const dollars   = parseInt(document.getElementById('aDollars_' + a.id)?.value) || 0;
-    const cents     = parseInt(document.getElementById('aCents_' + a.id)?.value) || 0;
-    const unitPrice = dollars + cents/100;
-    return { placement, qty, unitPrice, revenue: qty * unitPrice };
+    const placement  = document.getElementById('aPlacement_' + a.id)?.value || '';
+    const qty        = parseInt(document.getElementById('aQty_' + a.id)?.value) || 0;
+    const unitPrice  = parseFloat(document.getElementById('aPrice_' + a.id)?.value) || 0;
+    const runtime    = parseInt(document.getElementById('aRuntime_' + a.id)?.value) || 0;
+    const changeover = parseInt(document.getElementById('aChangeover_' + a.id)?.value) || 0;
+    return { placement, qty, unitPrice, revenue: qty * unitPrice, runtime, changeover };
   });
 }
 
@@ -1317,10 +1285,9 @@ function calcTotalRevenue() {
   let total = qty * price;
   // Add all asset revenues
   assets.forEach(a => {
-    const aQty     = parseFloat(document.getElementById('aQty_' + a.id)?.value) || 0;
-    const aDollars = parseInt(document.getElementById('aDollars_' + a.id)?.value) || 0;
-    const aCents   = parseInt(document.getElementById('aCents_' + a.id)?.value) || 0;
-    total += aQty * (aDollars + aCents/100);
+    const aQty   = parseFloat(document.getElementById('aQty_' + a.id)?.value) || 0;
+    const aPrice = parseFloat(document.getElementById('aPrice_' + a.id)?.value) || 0;
+    total += aQty * aPrice;
   });
   document.getElementById('revDisplay').textContent = '$' + total.toFixed(2);
 }
@@ -1722,9 +1689,11 @@ function buildProd() {
   const extraCheck = getAssets();
   for (let i = 0; i < extraCheck.length; i++) {
     const a = extraCheck[i];
-    if (!a.placement) { showAlert(`Select placement for Asset ${i+2}.`, 'bad'); return null; }
-    if (!a.qty)       { showAlert(`Enter qty for Asset ${i+2}.`, 'bad'); return null; }
-    if (!a.unitPrice) { showAlert(`Enter price for Asset ${i+2}.`, 'bad'); return null; }
+    if (!a.placement)  { showAlert(`Select placement for Asset ${i+2}.`, 'bad'); return null; }
+    if (!a.qty)        { showAlert(`Enter qty for Asset ${i+2}.`, 'bad'); return null; }
+    if (!a.unitPrice)  { showAlert(`Enter price for Asset ${i+2}.`, 'bad'); return null; }
+    if (!a.runtime)    { showAlert(`Enter machine runtime for Asset ${i+2}.`, 'bad'); return null; }
+    if (!a.changeover) { showAlert(`Select changeover for Asset ${i+2}.`, 'bad'); return null; }
   }
 
   const startMins = toMins(sH, sM, sAP);
@@ -2194,9 +2163,6 @@ function resetForm() {
   ['fJobNum','fJobName','fQty','fUnitPrice','fRuntime','fNotes','fIntendedQty','fAssetCode','fEditDur']
     .forEach(id => { const el = document.getElementById(id); if (el) { el.value = ''; el.classList.remove('err'); } });
   populateNumberDropdowns();
-  const pd = document.getElementById('fPriceDollars'); if (pd) pd.value = '';
-  const pc = document.getElementById('fPriceCents'); if (pc) pc.value = '';
-  const upHidden = document.getElementById('fUnitPrice'); if (upHidden) upHidden.value = '';
   ['fSampleType','fNumColors','fCoOp','fCoDur','fChangeover','fPlacement',
    'fSSH','fSSM','fSEH','fSEM']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });

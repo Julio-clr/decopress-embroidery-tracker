@@ -406,6 +406,8 @@ const MACHINE_TARGETS = {
 };
 
 let scriptUrl   = 'https://script.google.com/macros/s/AKfycbwEr6fxFVmtdifC11t0twtLgVpnckpVDbqKg-y1hqcMdLUgWuPPNNlZBLJ1dYovVlioSg/exec';
+let configOperators = [];
+let configMachines = [];
 let allData     = [];
 let period      = 'today';
 let opName      = '';
@@ -432,7 +434,21 @@ async function checkPin() {
 async function init() {
   document.getElementById('hDate').textContent =
     new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+  await loadConfig();
   await loadData();
+}
+
+async function loadConfig() {
+  try {
+    const resp = await fetch(scriptUrl + '?action=getConfig');
+    const result = await resp.json();
+    if (result.success && result.data) {
+      if (Array.isArray(result.data.operators)) configOperators = result.data.operators.filter(Boolean);
+      if (Array.isArray(result.data.machines))  configMachines  = result.data.machines.filter(Boolean);
+    }
+  } catch(e) {
+    console.warn('Config load failed', e);
+  }
 }
 
 // ═══════════════════════════════════════════════
@@ -561,7 +577,9 @@ function renderSummaryCards(data, adj) {
 
 // ── OPERATOR TABLE
 function renderOpTable(data, adj) {
-  const operators = ['Shay Chavez','Karla Betancourt','Elvia De la Rosa','Jocelyn Garcia','Fabiana Proana'];
+  // Operators from CONFIG, plus any operator found in the data (so nobody is missed)
+  const fromData = [...new Set(data.map(j => j.operator).filter(Boolean))];
+  const operators = [...new Set([...configOperators, ...fromData])];
   const wrap = document.getElementById('opTableWrap');
 
   const rows = operators.map(op=>{
@@ -615,7 +633,8 @@ function renderOpTable(data, adj) {
 
 // ── MACHINE CHART
 function renderMachineChart(data) {
-  const machines = ['8-Head','6-Head A','6-Head B','Single-Head 1','Single-Head 2','Single-Head 3'];
+  const fromDataM = [...new Set(data.map(j => j.machine).filter(Boolean))];
+  const machines = [...new Set([...configMachines, ...fromDataM])];
   const counts   = {};
   machines.forEach(m=>counts[m]=0);
   data.forEach(j=>{ if(j.machine&&counts.hasOwnProperty(j.machine)) counts[j.machine]++; });
