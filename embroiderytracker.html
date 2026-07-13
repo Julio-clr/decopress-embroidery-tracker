@@ -901,6 +901,7 @@ textarea { resize: vertical; min-height: 50px; }
 
       <div style="margin-top:12px;">
         <button class="btn-save" id="saveBtn" onclick="saveAll()">Save All Jobs</button>
+        <div id="autoSaveStamp" style="text-align:center;font-size:11px;color:var(--muted);margin-top:6px;opacity:0.7;">Auto-saves every 30 min</div>
       </div>
 
     </div>
@@ -1211,6 +1212,7 @@ window.onload = async function () {
   try { const s = sessionStorage.getItem('emb_staging'); if (s) jobs = JSON.parse(s); } catch(e){}
   initTimePickers();
   populateNumberDropdowns();
+  startAutoSave();      // begin 30-min background auto-save
   renderTimeline();     // show shift bar immediately with hardcoded defaults
   await loadConfig();   // then load CONFIG (operators/machines/placements/shift schedule)
   updateBreakBtn();
@@ -1898,16 +1900,8 @@ function updateSummary() {
 // ═══════════════════════════════════════════════
 //  SAVE ALL
 // ═══════════════════════════════════════════════
-async function saveAll() {
-  const unsaved = jobs.filter(j => !j.saved);
-  if (!unsaved.length) { showAlert('No new jobs to save.', 'bad'); return; }
-  if (!v('hOperator')) { showAlert('Select an operator first.', 'bad'); return; }
-  if (!v('hMachine'))  { showAlert('Select a machine first.', 'bad'); return; }
-
-  // Attach ALL of today's breaks to the jobs being saved so the dashboard
-  // sees every break, whether or not it overlapped a job window.
-  // Full day break list goes on the FIRST unsaved job; others get their in-window breaks
-  // (so the tracker job-log line still shows the right break next to each job).
+// Attach today's breaks to the jobs being saved (shared by manual + auto save)
+function attachBreaksToJobs(unsaved) {
   const allBreaks = getBreakLog().map(b => ({
     label:b.label, startTime:b.startTime, stopTime:b.stopTime,
     startMins:b.startMins, endMins:b.endMins, duration:b.duration,
@@ -1916,41 +1910,104 @@ async function saveAll() {
   unsaved.forEach((j, idx) => {
     const js = (j.startMins!==undefined&&j.startMins!=='') ? parseInt(j.startMins) : parseTimeStr(j.startTime);
     const je = (j.stopMins!==undefined&&j.stopMins!=='') ? parseInt(j.stopMins) : parseTimeStr(j.stopTime);
-    // First job carries the full day's break list (for the dashboard timeline)
     if (idx === 0) {
       j.breakLog = JSON.stringify(allBreaks);
     } else if (js !== null && je !== null) {
-      const inWindow = allBreaks.filter(b => b.startMins >= js && b.startMins < je);
-      j.breakLog = JSON.stringify(inWindow);
+      j.breakLog = JSON.stringify(allBreaks.filter(b => b.startMins >= js && b.startMins < je));
     } else {
       j.breakLog = '';
     }
   });
+}
+
+// Core save — used by both the manual button and auto-save. Returns true/false.
+async function pushUnsaved() {
+  const unsaved = jobs.filter(j => !j.saved);
+  if (!unsaved.length) return { ok: true, count: 0 };
+
+  attachBreaksToJobs(unsaved);
 
   const key = 'emb_jobs_' + new Date().toISOString().slice(0,10);
   const existing = JSON.parse(localStorage.getItem(key) || '[]');
   localStorage.setItem(key, JSON.stringify([...existing, ...unsaved]));
   sessionStorage.removeItem('emb_staging');
 
-  const btn = document.getElementById('saveBtn');
-  btn.textContent = 'Saving…'; btn.disabled = true;
   try {
-    const resp = await fetch(scriptUrl, {
-      method: 'POST',
-      body: JSON.stringify({ jobs: unsaved })
-    });
+    const resp = await fetch(scriptUrl, { method: 'POST', body: JSON.stringify({ jobs: unsaved }) });
     const result = await resp.json();
     if (!result.success) throw new Error(result.error);
     unsaved.forEach(j => j.saved = true);
-    showAlert('✅ ' + unsaved.length + ' job(s) saved to Google Sheets.', 'ok');
-    renderTable();
-    renderTimeline();
+    return { ok: true, count: unsaved.length };
   } catch(e) {
-    showAlert('⚠ Sheet sync failed — check connection.', 'bad');
-  } finally {
-    btn.textContent = 'Save All Jobs'; btn.disabled = false;
+    return { ok: false, count: unsaved.length };
   }
 }
+
+// Manual Save All button
+async function saveAll() {
+  const unsaved = jobs.filter(j => !j.saved);
+  if (!unsaved.length) { showAlert('No new jobs to save.', 'bad'); return; }
+
+  const btn = document.getElementById('saveBtn');
+  btn.textContent = 'Saving…'; btn.disabled = true;
+  const res = await pushUnsaved();
+  if (res.ok) {
+    showAlert('✅ ' + res.count + ' job(s) saved to Google Sheets.', 'ok');
+    setAutoSaveStamp();
+    renderTable();
+    renderTimeline();
+  } else {
+    showAlert('⚠ Sheet sync failed — check connection.', 'bad');
+  }
+  btn.textContent = 'Save All Jobs'; btn.disabled = false;
+}
+
+// ── AUTO-SAVE ──
+let autoSaveTimer = null;
+const AUTO_SAVE_MS = 30 * 60 * 1000; // 30 minutes
+
+function startAutoSave() {
+  if (autoSaveTimer) clearInterval(autoSaveTimer);
+  autoSaveTimer = setInterval(autoSaveTick, AUTO_SAVE_MS);
+}
+
+async function autoSaveTick() {
+  const unsaved = jobs.filter(j => !j.saved);
+  if (!unsaved.length) return;              // nothing to save, stay quiet
+  const res = await pushUnsaved();
+  if (res.ok && res.count > 0) {
+    setAutoSaveStamp();
+    renderTable();
+    renderTimeline();
+  }
+}
+
+function setAutoSaveStamp() {
+  const el = document.getElementById('autoSaveStamp');
+  if (!el) return;
+  const now = new Date();
+  let h = now.getHours(), m = now.getMinutes(), ap = 'AM';
+  if (h >= 12) { ap = 'PM'; if (h > 12) h -= 12; }
+  if (h === 0) h = 12;
+  el.textContent = `Auto-saved ${h}:${m.toString().padStart(2,'0')} ${ap}`;
+  el.style.opacity = '1';
+}
+
+// Save on tab close / navigate away (best-effort)
+window.addEventListener('beforeunload', function() {
+  const unsaved = jobs.filter(j => !j.saved);
+  if (!unsaved.length) return;
+  attachBreaksToJobs(unsaved);
+  const key = 'emb_jobs_' + new Date().toISOString().slice(0,10);
+  const existing = JSON.parse(localStorage.getItem(key) || '[]');
+  localStorage.setItem(key, JSON.stringify([...existing, ...unsaved]));
+  // sendBeacon survives page unload where fetch may not
+  try {
+    const blob = new Blob([JSON.stringify({ jobs: unsaved })], { type: 'text/plain' });
+    navigator.sendBeacon(scriptUrl, blob);
+    unsaved.forEach(j => j.saved = true);
+  } catch(e) {}
+});
 
 // ═══════════════════════════════════════════════
 //  SHIFT TIMELINE
