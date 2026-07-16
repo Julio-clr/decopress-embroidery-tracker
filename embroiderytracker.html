@@ -524,15 +524,15 @@ textarea { resize: vertical; min-height: 50px; }
   <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;">This Week</div>
   <div class="summary-row" style="margin-bottom:8px;">
     <div class="sum-card highlight">
-      <div class="sum-label">Jobs</div>
+      <div class="sum-label" id="wLbl1">Jobs</div>
       <div class="sum-val" id="wJobs">0</div>
     </div>
     <div class="sum-card highlight">
-      <div class="sum-label">Pieces</div>
+      <div class="sum-label" id="wLbl2">Pieces</div>
       <div class="sum-val" id="wPcs">0</div>
     </div>
     <div class="sum-card highlight">
-      <div class="sum-label">Pcs / Hr</div>
+      <div class="sum-label" id="wLbl3">Pcs / Hr</div>
       <div class="sum-val" id="wPcsHr">—</div>
     </div>
     <div class="sum-card" style="border:1.5px solid #fed7aa;">
@@ -546,16 +546,16 @@ textarea { resize: vertical; min-height: 50px; }
   <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;">Today</div>
   <div class="summary-row">
     <div class="sum-card highlight">
-      <div class="sum-label">Jobs</div>
+      <div class="sum-label" id="sLbl1">Jobs</div>
       <div class="sum-val" id="sJobs">0</div>
     </div>
     <div class="sum-card highlight">
-      <div class="sum-label">Pieces</div>
+      <div class="sum-label" id="sLbl2">Pieces</div>
       <div class="sum-val" id="sPcs">0</div>
       <div id="sPcsSub" style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:3px;"></div>
     </div>
     <div class="sum-card highlight">
-      <div class="sum-label">Pcs / Hr</div>
+      <div class="sum-label" id="sLbl3">Pcs / Hr</div>
       <div class="sum-val" id="sPcsHr">—</div>
     </div>
     <div class="sum-card" style="border:1.5px solid #fed7aa;">
@@ -637,41 +637,39 @@ textarea { resize: vertical; min-height: 50px; }
           <div class="row c2" style="margin-bottom:10px;">
             <div class="fg">
               <label>Start Time <span class="req">*</span></label>
-              <div class="time-row">
-                <select id="fSSH">
-                  <option value="">Hr</option>
-                  <option>1</option><option>2</option><option>3</option><option>4</option>
-                  <option>5</option><option>6</option><option>7</option><option>8</option>
-                  <option>9</option><option>10</option><option>11</option><option>12</option>
-                </select>
-                <select id="fSSM">
-                  <option value="">Min</option>
-                  <option value="00">00</option><option value="05">05</option><option value="10">10</option>
-                  <option value="15">15</option><option value="20">20</option><option value="25">25</option>
-                  <option value="30">30</option><option value="35">35</option><option value="40">40</option>
-                  <option value="45">45</option><option value="50">50</option><option value="55">55</option>
-                </select>
-                <select id="fSSAP"><option value="AM">AM</option><option value="PM">PM</option></select>
+              <div class="time-picker-wrap">
+                <div class="time-picker-display" id="leadStartTimeDisplay" onclick="toggleTimePicker('leadStart')">
+                  <span class="tp-val" id="leadStartTimeVal">-- : -- --</span>
+                  <span class="tp-icon">⏱</span>
+                </div>
+                <div class="time-picker-popup" id="leadStartTimePicker">
+                  <div class="tp-cols">
+                    <div class="tp-col"><div class="tp-col-label">Hr</div><div class="tp-scroll" id="leadStartHrScroll"></div></div>
+                    <div class="tp-col"><div class="tp-col-label">Min</div><div class="tp-scroll" id="leadStartMinScroll"></div></div>
+                    <div class="tp-col"><div class="tp-col-label">AM/PM</div><div class="tp-scroll" id="leadStartApScroll"></div></div>
+                  </div>
+                  <button class="tp-done" onclick="closeTimePicker('leadStart')">Done</button>
+                </div>
               </div>
+              <input type="hidden" id="fSSH" /><input type="hidden" id="fSSM" /><input type="hidden" id="fSSAP" value="AM" />
             </div>
             <div class="fg">
               <label>Stop Time <span class="req">*</span></label>
-              <div class="time-row">
-                <select id="fSEH">
-                  <option value="">Hr</option>
-                  <option>1</option><option>2</option><option>3</option><option>4</option>
-                  <option>5</option><option>6</option><option>7</option><option>8</option>
-                  <option>9</option><option>10</option><option>11</option><option>12</option>
-                </select>
-                <select id="fSEM">
-                  <option value="">Min</option>
-                  <option value="00">00</option><option value="05">05</option><option value="10">10</option>
-                  <option value="15">15</option><option value="20">20</option><option value="25">25</option>
-                  <option value="30">30</option><option value="35">35</option><option value="40">40</option>
-                  <option value="45">45</option><option value="50">50</option><option value="55">55</option>
-                </select>
-                <select id="fSEAP"><option value="AM">AM</option><option value="PM">PM</option></select>
+              <div class="time-picker-wrap">
+                <div class="time-picker-display" id="leadStopTimeDisplay" onclick="toggleTimePicker('leadStop')">
+                  <span class="tp-val" id="leadStopTimeVal">-- : -- --</span>
+                  <span class="tp-icon">⏱</span>
+                </div>
+                <div class="time-picker-popup" id="leadStopTimePicker">
+                  <div class="tp-cols">
+                    <div class="tp-col"><div class="tp-col-label">Hr</div><div class="tp-scroll" id="leadStopHrScroll"></div></div>
+                    <div class="tp-col"><div class="tp-col-label">Min</div><div class="tp-scroll" id="leadStopMinScroll"></div></div>
+                    <div class="tp-col"><div class="tp-col-label">AM/PM</div><div class="tp-scroll" id="leadStopApScroll"></div></div>
+                  </div>
+                  <button class="tp-done" onclick="closeTimePicker('leadStop')">Done</button>
+                </div>
               </div>
+              <input type="hidden" id="fSEH" /><input type="hidden" id="fSEM" /><input type="hidden" id="fSEAP" value="AM" />
             </div>
           </div>
         </div>
@@ -977,8 +975,18 @@ const MINS  = ['00','05','10','15','20','25','30','35','40','45','50','55'];
 const AMPM  = ['AM','PM'];
 
 const tpState = {
-  start: { h:'', m:'', ap:'AM' },
-  stop:  { h:'', m:'', ap:'AM' }
+  start:     { h:'', m:'', ap:'AM' },
+  stop:      { h:'', m:'', ap:'AM' },
+  leadStart: { h:'', m:'', ap:'AM' },
+  leadStop:  { h:'', m:'', ap:'AM' }
+};
+
+// Maps a picker instance to its hidden input IDs
+const TP_HIDDEN = {
+  start:     { h:'fSH',  m:'fSM',  ap:'fSAP'  },
+  stop:      { h:'fEH',  m:'fEM',  ap:'fEAP'  },
+  leadStart: { h:'fSSH', m:'fSSM', ap:'fSSAP' },
+  leadStop:  { h:'fSEH', m:'fSEM', ap:'fSEAP' }
 };
 
 function populateNumberDropdowns() {
@@ -992,7 +1000,7 @@ function populateNumberDropdowns() {
 }
 
 function initTimePickers() {
-  ['start','stop'].forEach(which => {
+  ['start','stop','leadStart','leadStop'].forEach(which => {
     const hrs  = document.getElementById(which + 'HrScroll');
     const mins = document.getElementById(which + 'MinScroll');
     const aps  = document.getElementById(which + 'ApScroll');
@@ -1031,8 +1039,8 @@ function selectTp(which, field, val) {
     });
   }
   updateTimeDisplay(which);
-  // Run sanity check whenever either time changes
-  if (field !== 'ap' || tpState[which].h) checkTimesSanity();
+  // Sanity check only applies to the production start/stop pair
+  if ((which === 'start' || which === 'stop') && (field !== 'ap' || tpState[which].h)) checkTimesSanity();
 }
 
 function checkTimesSanity() {
@@ -1066,13 +1074,16 @@ function checkTimesSanity() {
 function updateTimeDisplay(which) {
   const s = tpState[which];
   const display = document.getElementById(which + 'TimeVal');
+  if (!display) return;
+  const ids = TP_HIDDEN[which];
   if (s.h && s.m) {
     display.textContent = `${s.h}:${s.m} ${s.ap}`;
     display.style.color = 'var(--text)';
-    // Update hidden inputs
-    document.getElementById(which === 'start' ? 'fSH' : 'fEH').value = s.h;
-    document.getElementById(which === 'start' ? 'fSM' : 'fEM').value = s.m;
-    document.getElementById(which === 'start' ? 'fSAP': 'fEAP').value = s.ap;
+    if (ids) {
+      const eh = document.getElementById(ids.h); if (eh) eh.value = s.h;
+      const em = document.getElementById(ids.m); if (em) em.value = s.m;
+      const ea = document.getElementById(ids.ap); if (ea) ea.value = s.ap;
+    }
   } else {
     display.textContent = '-- : -- --';
     display.style.color = 'var(--muted)';
@@ -1106,18 +1117,16 @@ document.addEventListener('click', function(e) {
 });
 
 function resetTimePickers() {
-  ['start','stop'].forEach(which => {
+  ['start','stop','leadStart','leadStop'].forEach(which => {
     tpState[which] = { h:'', m:'', ap:'AM' };
     updateTimeDisplay(which);
-    // Clear selected states
     ['Hr','Min','Ap'].forEach(col => {
       const scroll = document.getElementById(which + col + 'Scroll');
       if (scroll) scroll.querySelectorAll('.tp-item').forEach(el => el.classList.remove('selected'));
     });
   });
-  ['fSH','fSM','fEH','fEM'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
-  document.getElementById('fSAP').value = 'AM';
-  document.getElementById('fEAP').value = 'AM';
+  ['fSH','fSM','fEH','fEM','fSSH','fSSM','fSEH','fSEM'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  ['fSAP','fEAP','fSSAP','fSEAP'].forEach(id => { const el = document.getElementById(id); if(el) el.value = 'AM'; });
 }
 
 // ═══════════════════════════════════════════════
@@ -1609,6 +1618,8 @@ function addJob() {
       job = { ...job,
         startTime: `${v('fSSH')}:${v('fSSM')} ${v('fSSAP')}`,
         stopTime:  `${v('fSEH')}:${v('fSEM')} ${v('fSEAP')}`,
+        startMins: toMins(v('fSSH'), v('fSSM'), v('fSSAP')),
+        stopMins:  toMins(v('fSEH'), v('fSEM'), v('fSEAP')),
         elapsed: Math.max(toMins(v('fSEH'), v('fSEM'), v('fSEAP')) - toMins(v('fSSH'), v('fSSM'), v('fSSAP')), 0),
         sampleType: sType, intendedQty: parseInt(iQty), numColors: n, colors };
     }
@@ -1623,6 +1634,8 @@ function addJob() {
       job = { ...job,
         startTime: `${v('fSSH')}:${v('fSSM')} ${v('fSSAP')}`,
         stopTime:  `${v('fSEH')}:${v('fSEM')} ${v('fSEAP')}`,
+        startMins: toMins(v('fSSH'), v('fSSM'), v('fSSAP')),
+        stopMins:  toMins(v('fSEH'), v('fSEM'), v('fSEAP')),
         elapsed: Math.max(toMins(v('fSEH'), v('fSEM'), v('fSEAP')) - toMins(v('fSSH'), v('fSSM'), v('fSSAP')), 0),
         coOp, coDur: parseInt(coDur) };
     }
@@ -1637,6 +1650,8 @@ function addJob() {
       job = { ...job,
         startTime: `${v('fSSH')}:${v('fSSM')} ${v('fSSAP')}`,
         stopTime:  `${v('fSEH')}:${v('fSEM')} ${v('fSEAP')}`,
+        startMins: toMins(v('fSSH'), v('fSSM'), v('fSSAP')),
+        stopMins:  toMins(v('fSEH'), v('fSEM'), v('fSEAP')),
         elapsed: Math.max(toMins(v('fSEH'), v('fSEM'), v('fSEAP')) - toMins(v('fSSH'), v('fSSM'), v('fSSAP')), 0),
         assetCode: asset, editDur: parseInt(editDr) };
     }
@@ -1840,17 +1855,58 @@ function getAllWeekJobs() {
 }
 
 function updateSummary() {
+  const isLead = v('hOperator') === 'Shay Chavez';
+
+  // Reset labels to defaults (production), then override for lead below
+  const setLbl = (id, txt) => { const el=document.getElementById(id); if(el) el.textContent = txt; };
+  setLbl('sLbl1','Jobs'); setLbl('sLbl2','Pieces'); setLbl('sLbl3','Pcs / Hr');
+  setLbl('wLbl1','Jobs'); setLbl('wLbl2','Pieces'); setLbl('wLbl3','Pcs / Hr');
+
   // Include saved jobs from localStorage for today so metrics persist after Save All
   const today = new Date().toISOString().slice(0,10);
   const savedToday = JSON.parse(localStorage.getItem('emb_jobs_' + today) || '[]');
   const allToday = [...savedToday, ...jobs.filter(j => !j.saved)];
+  const weekJobs = getAllWeekJobs();
+  const totalDmg = allToday.reduce((a,j) => a + (parseInt(j.damages)||0), 0);
+  const wDmg     = weekJobs.reduce((a,j) => a + (parseInt(j.damages)||0), 0);
+
+  if (isLead) {
+    // ── LEAD KPIs: Samples · CO Assists · File Edits ──
+    const tSamples = allToday.filter(j => j.action==='sample').length;
+    const tCO      = allToday.filter(j => j.action==='co').length;
+    const tEdits   = allToday.filter(j => j.action==='edit').length;
+    const wSamples = weekJobs.filter(j => j.action==='sample').length;
+    const wCO      = weekJobs.filter(j => j.action==='co').length;
+    const wEdits   = weekJobs.filter(j => j.action==='edit').length;
+
+    setLbl('sLbl1','Samples'); setLbl('sLbl2','CO Assists'); setLbl('sLbl3','File Edits');
+    setLbl('wLbl1','Samples'); setLbl('wLbl2','CO Assists'); setLbl('wLbl3','File Edits');
+
+    document.getElementById('sJobs').textContent  = tSamples;
+    document.getElementById('sPcs').textContent   = tCO;
+    const sPcsSub = document.getElementById('sPcsSub'); if (sPcsSub) sPcsSub.textContent = '';
+    document.getElementById('sPcsHr').textContent = tEdits;
+    document.getElementById('sDmg').textContent   = totalDmg;
+    const sDmgRateEl = document.getElementById('sDmgRate'); if (sDmgRateEl) sDmgRateEl.textContent = '';
+
+    document.getElementById('wJobs').textContent  = wSamples;
+    document.getElementById('wPcs').textContent   = wCO;
+    document.getElementById('wPcsHr').textContent = wEdits;
+    document.getElementById('wDmg').textContent   = wDmg;
+    const wDmgRateEl = document.getElementById('wDmgRate'); if (wDmgRateEl) wDmgRateEl.textContent = '';
+
+    // sTarget guard (unused for lead)
+    const tEl0 = document.getElementById('sTarget'); if (tEl0) tEl0.textContent = '';
+    renderTimeline();
+    return;
+  }
+
   const prodJobs = allToday.filter(j => j.action === 'prod' || !j.isShay);
   const totalPcs = prodJobs.reduce((a,j) => a + (j.qty || 0), 0);
   const totalRev = prodJobs.reduce((a,j) => a + (j.revenue || 0), 0);
   const totalMin = prodJobs.reduce((a,j) => a + (j.netElapsed || j.elapsed || 0), 0);
   const pcsHr    = totalMin > 0 ? ((totalPcs / totalMin) * 60).toFixed(1) : '—';
 
-  const totalDmg = allToday.reduce((a,j) => a + (parseInt(j.damages)||0), 0);
   const DAILY_TARGET = 200;
   const todayPerf = totalPcs >= DAILY_TARGET
     ? `✓ Target hit (${totalPcs}/${DAILY_TARGET})`
@@ -1867,13 +1923,11 @@ function updateSummary() {
   if (sDmgRateEl) sDmgRateEl.textContent = totalPcs > 0 ? ((totalDmg/totalPcs)*100).toFixed(2)+'% rate' : '';
 
   // Weekly metrics
-  const weekJobs = getAllWeekJobs();
   const wProd    = weekJobs.filter(j => j.action === 'prod' || !j.isShay);
   const wPcs     = wProd.reduce((a,j) => a + (parseInt(j.qty)||0), 0);
   const wRev     = wProd.reduce((a,j) => a + (parseFloat(j.revenue)||0), 0);
   const wMin     = wProd.reduce((a,j) => a + (parseInt(j.netElapsed||j.elapsed)||0), 0);
   const wPcsHr   = wMin > 0 ? ((wPcs / wMin) * 60).toFixed(1) : '—';
-  const wDmg = weekJobs.reduce((a,j) => a + (parseInt(j.damages)||0), 0);
   document.getElementById('wJobs').textContent   = weekJobs.length;
   document.getElementById('wPcs').textContent    = wPcs;
   document.getElementById('wPcsHr').textContent  = wPcsHr;
@@ -2068,7 +2122,9 @@ function renderTimeline() {
   const today = new Date().toISOString().slice(0,10);
   const savedToday = JSON.parse(localStorage.getItem('emb_jobs_' + today) || '[]');
   const allToday = [...savedToday, ...jobs.filter(j => !j.saved)];
-  const prodJobs = allToday.filter(j => (j.action === 'prod' || !j.isShay) && j.startTime && j.stopTime);
+  // Include production AND lead actions (sample/co/edit/gprod) that have times
+  const TIMED_ACTIONS = ['prod','gprod','sample','co','edit'];
+  const prodJobs = allToday.filter(j => (TIMED_ACTIONS.includes(j.action) || !j.isShay) && j.startTime && j.stopTime);
 
   const el = document.getElementById('tlContent');
   const subEl = document.getElementById('tlSub');
@@ -2091,9 +2147,19 @@ function renderTimeline() {
     end:   (j.stopMins  !== undefined && j.stopMins  !== null && j.stopMins  !== '') ? parseInt(j.stopMins)  : parseTimeStr(j.stopTime),
     label: j.jobNum,
     co:    parseInt(j.changeover) || 0,
-    deduct: parseInt(j.deduct) || 0
+    deduct: parseInt(j.deduct) || 0,
+    action: j.action || 'prod'
   })).filter(b => b.start !== null && b.end !== null && !isNaN(b.start) && !isNaN(b.end) && b.end > b.start)
      .sort((a,b) => a.start - b.start);
+
+  // Colors + labels per action type
+  const ACTION_STYLE = {
+    prod:   { color:'#2563eb', name:'Production' },
+    gprod:  { color:'#2563eb', name:'Production' },
+    sample: { color:'#0d9488', name:'Sample' },       // teal
+    co:     { color:'#7c3aed', name:'CO Assist' },     // purple
+    edit:   { color:'#4d7c5f', name:'File Edit' }      // slate-green
+  };
 
 
 
@@ -2120,23 +2186,25 @@ function renderTimeline() {
   let cursor = axisStart;
 
   blocks.forEach((blk, i) => {
-    const coMins  = blk.co || 0;
+    const style = ACTION_STYLE[blk.action] || ACTION_STYLE.prod;
+    const isProd = (blk.action === 'prod' || blk.action === 'gprod');
+    const coMins  = isProd ? (blk.co || 0) : 0;
     const coStart = blk.start - coMins;
     const segStart = coMins > 0 ? coStart : blk.start;
 
-    // gap before changeover/job
+    // gap before changeover/action
     if (segStart > cursor) {
       segs += `<div class="tl-seg gap-seg" style="width:${wpct(segStart-cursor)}%;" title="Gap - ${fmtMin(segStart-cursor)}"></div>`;
       cursor = segStart;
     }
-    // changeover block (dark navy) before job
+    // changeover block (production only)
     if (coMins > 0 && coStart >= axisStart) {
       segs += `<div class="tl-seg" style="width:${wpct(coMins)}%;background:#1a2e4a;" title="Changeover - Job ${blk.label} - ${coMins}min"><span style="font-size:9px;color:rgba(255,255,255,0.7);">CO</span></div>`;
       cursor += coMins;
     }
-    // job block (blue), full length by clock time, 3px separator unless last
+    // action block, colored by type
     const isLast = i === blocks.length - 1;
-    segs += `<div class="tl-seg" style="width:${wpct(blk.end-blk.start)}%;background:#2563eb;${!isLast ? 'border-right:3px solid #0f172a;' : ''}" title="Job ${blk.label}: ${fmt12(blk.start)}-${fmt12(blk.end)} - ${fmtMin(blk.end-blk.start)}"><span>${blk.label}</span></div>`;
+    segs += `<div class="tl-seg" style="width:${wpct(blk.end-blk.start)}%;background:${style.color};${!isLast ? 'border-right:3px solid #0f172a;' : ''}" title="${style.name} ${blk.label}: ${fmt12(blk.start)}-${fmt12(blk.end)} - ${fmtMin(blk.end-blk.start)}"><span>${blk.label}</span></div>`;
     cursor = blk.end;
   });
 
@@ -2174,11 +2242,14 @@ function renderTimeline() {
     axisLabels += `<span>${fmt12(m)}</span>`;
   }
 
-  // Legend
-  let legend = blocks.map(b =>
-    `<div class="tl-leg"><div class="tl-leg-dot" style="background:#2563eb;"></div>${b.label} - ${fmtMin(b.end-b.start)}</div>`
-  ).join('');
-  legend += `<div class="tl-leg"><div class="tl-leg-dot" style="background:#1a2e4a;"></div>Changeover</div>`;
+  // Legend — one entry per action type present, plus changeover/gap/break
+  const typesPresent = [...new Set(blocks.map(b => b.action))];
+  let legend = typesPresent.map(t => {
+    const st = ACTION_STYLE[t] || ACTION_STYLE.prod;
+    return `<div class="tl-leg"><div class="tl-leg-dot" style="background:${st.color};"></div>${st.name}</div>`;
+  }).join('');
+  if (blocks.some(b => b.action==='prod'||b.action==='gprod'))
+    legend += `<div class="tl-leg"><div class="tl-leg-dot" style="background:#1a2e4a;"></div>Changeover</div>`;
   legend += `<div class="tl-leg"><div class="tl-leg-dot" style="background:#e2e8f0;border:1px solid #cbd5e1;"></div>Gap</div>`;
   if (breakLog.length || activeBrk) legend += `<div class="tl-leg"><div class="tl-leg-dot" style="background:#f59e0b;"></div>Break</div>`;
 

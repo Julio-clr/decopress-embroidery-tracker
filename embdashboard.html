@@ -413,6 +413,36 @@ const MACHINE_TARGETS = {
 let scriptUrl   = 'https://script.google.com/macros/s/AKfycbwEr6fxFVmtdifC11t0twtLgVpnckpVDbqKg-y1hqcMdLUgWuPPNNlZBLJ1dYovVlioSg/exec';
 let configOperators = [];
 let configMachines = [];
+let configShiftSchedule = {};
+
+function parseShiftTime(str) {
+  if (!str) return null;
+  str = String(str).trim();
+  const m = str.match(/^(\d+):(\d+)\s*(AM|PM)?$/i);
+  if (m) {
+    let h = parseInt(m[1]), mn = parseInt(m[2]);
+    const ap = (m[3]||'').toUpperCase();
+    if (ap === 'PM' && h !== 12) h += 12;
+    if (ap === 'AM' && h === 12) h = 0;
+    return h * 60 + mn;
+  }
+  return null;
+}
+
+// Get shift start/end (in minutes) for a given date string (YYYY-MM-DD)
+function getShiftForDate(dateStr) {
+  const DEFAULT = { start: 8*60, end: 16*60+30 }; // 8:00 AM - 4:30 PM
+  try {
+    const day = new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long' });
+    const sched = configShiftSchedule[day];
+    if (sched) {
+      const s = parseShiftTime(sched.start);
+      const e = parseShiftTime(sched.end);
+      if (s !== null && e !== null) return { start: s, end: e };
+    }
+  } catch(e) {}
+  return DEFAULT;
+}
 let allData     = [];
 let period      = 'today';
 let opName      = '';
@@ -450,6 +480,7 @@ async function loadConfig() {
     if (result.success && result.data) {
       if (Array.isArray(result.data.operators)) configOperators = result.data.operators.filter(Boolean);
       if (Array.isArray(result.data.machines))  configMachines  = result.data.machines.filter(Boolean);
+      if (result.data.shiftSchedule)            configShiftSchedule = result.data.shiftSchedule;
     }
   } catch(e) {
     console.warn('Config load failed', e);
@@ -613,9 +644,10 @@ function renderOpTable(data, adj) {
     // Multi-day periods → no timeline here; use the detailed operator view.
     let timelines = '';
     if (period === 'today' || period === 'yesterday') {
-      const dates = [...new Set(prod.map(j=>j.date))].sort();
+      const TIMED = ['prod','gprod','sample','co','edit'];
+      const dates = [...new Set(opJobs.map(j=>j.date))].sort();
       dates.forEach(d => {
-        const dayJobs = prod.filter(j=>j.date===d);
+        const dayJobs = opJobs.filter(j=>j.date===d && (TIMED.includes(j.action) || !j.isShay));
         const bar = buildTimelineBar(dayJobs, d);
         if (bar) timelines += bar;
       });
@@ -893,8 +925,10 @@ function renderOpDetail() {
   document.getElementById('opDetailSub').textContent  = `${periodLabel(opPeriod)} · ${jobs} job${jobs!==1?'s':''}`;
   document.getElementById('opJobLogTitle').textContent = `Job Log — ${periodLabel(opPeriod)}`;
 
-  // Is this operator a LEAD? (any job flagged isShay = lead-style entries)
-  const isLead = opData.some(j => j.isShay);
+  // Is this operator a LEAD? Check ALL their history (not just this period),
+  // so the lead layout is consistent even on a day they only ran production.
+  const allOpJobs = allData.filter(j => j.operator === opName);
+  const isLead = allOpJobs.some(j => j.isShay || j.action==='sample' || j.action==='co' || j.action==='edit' || j.action==='gprod');
   const cardsRow = document.getElementById('opCardsRow');
 
   if (isLead) {
@@ -967,8 +1001,10 @@ function renderOpDetail() {
     // Day label
     const dayLabel = new Date(date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
 
-    // Timeline bar
-    const timelineBar = buildTimelineBar(dayProd, date);
+    // Timeline bar — include lead actions (sample/co/edit/gprod), not just production
+    const TIMED = ['prod','gprod','sample','co','edit'];
+    const dayTimed = dayJobs.filter(j => TIMED.includes(j.action) || !j.isShay);
+    const timelineBar = buildTimelineBar(dayTimed, date);
 
     html += `<div style="border-bottom:2px solid var(--border);">
       <!-- DAY HEADER -->
@@ -1131,10 +1167,10 @@ function buildTimelineBar(dayProd, date) {
   const allBreaks = [];
 
   dayProd.forEach(j => {
-    const s = parseTimeStr(j.startTime);
-    const e = parseTimeStr(j.stopTime);
+    const s = (j.startMins!==undefined&&j.startMins!==null&&j.startMins!=='') ? parseInt(j.startMins) : parseTimeStr(j.startTime);
+    const e = (j.stopMins!==undefined&&j.stopMins!==null&&j.stopMins!=='') ? parseInt(j.stopMins) : parseTimeStr(j.stopTime);
     if (s !== null && e !== null && e > s) {
-      jobBlocks.push({ start: s, end: e, label: j.jobNum, co: parseInt(j.changeover)||0 });
+      jobBlocks.push({ start: s, end: e, label: j.jobNum, co: parseInt(j.changeover)||0, action: j.action||'prod' });
       if (s < shiftStart) shiftStart = s;
       if (e > shiftEnd)   shiftEnd   = e;
     }
@@ -1158,8 +1194,13 @@ function buildTimelineBar(dayProd, date) {
 
   if (!jobBlocks.length || shiftStart === Infinity) return '';
 
-  const SHIFT_START = 8 * 60;
+  // Real shift window for this day (from CONFIG, per weekday; Saturday differs)
+  const shiftWin = getShiftForDate(date);
+  const SHIFT_START = shiftWin.start;   // e.g. 8:00 AM
+  const SHIFT_END   = shiftWin.end;     // e.g. 4:30 PM
   shiftStart = Math.min(shiftStart, SHIFT_START);
+  // Bar always runs through the shift end; extends only if work/break goes into overtime
+  shiftEnd = Math.max(shiftEnd, SHIFT_END);
   allBreaks.forEach(b => {
     if (b.startMins < shiftStart) shiftStart = b.startMins;
     if (b.endMins   > shiftEnd)   shiftEnd   = b.endMins;
@@ -1168,6 +1209,8 @@ function buildTimelineBar(dayProd, date) {
   const totalSpan = shiftEnd - shiftStart;
   if (totalSpan <= 0) return '';
 
+  const OT_LINE = SHIFT_END; // anything after this is overtime
+
   const sorted = [...jobBlocks].sort((a,b)=>a.start-b.start);
 
   // Track totals + action ranges for the breakdown under the bar
@@ -1175,53 +1218,77 @@ function buildTimelineBar(dayProd, date) {
   const actionRanges = []; // {type, label, start, end, dur}
 
   // ── BOTTOM LAYER ──
-  let segments = '';
-  let cursor = shiftStart;
+  // Everything is absolutely positioned by clock time on a gray base track.
+  // Gray base = whole shift (unaccounted). CO + job blocks sit on top by exact time.
+  // NEW RULE: CO is drawn AFTER the logged start time. Job production follows the CO.
+  //   e.g. logged start 8:30 + 10min CO -> CO 8:30-8:40, production 8:40-stop.
+  // Work past the shift end (OT_LINE) is colored as OVERTIME (amber).
+  let segments = '<div style="position:absolute;inset:0;background:#e2e8f0;"></div>';
+
+  const pctLeft = m => ((m - shiftStart) / totalSpan * 100);
+  const pctW    = mins => (mins / totalSpan * 100);
+  const OT_COLOR = '#f59e0b';   // amber = overtime
+  const CO_COLOR = '#1a2e4a';   // dark navy = changeover
+  const JOB_COLOR = '#2563eb';  // blue = normal production
+  // Colors + names per action type (match the tracker)
+  const ACTION_STYLE = {
+    prod:   { color:'#2563eb', name:'Production' },
+    gprod:  { color:'#2563eb', name:'Production' },
+    sample: { color:'#0d9488', name:'Sample' },
+    co:     { color:'#7c3aed', name:'CO Assist' },
+    edit:   { color:'#4d7c5f', name:'File Edit' }
+  };
+
+  // Helper: draw a block that may straddle the OT line — normal color before, amber after
+  function drawBlock(start, end, normalColor, label, tooltipTitle) {
+    let html = '';
+    // portion before OT line (normal color)
+    const normEnd = Math.min(end, OT_LINE);
+    if (normEnd > start) {
+      html += `<div class="tl-seg-wrap" style="position:absolute;top:0;bottom:0;left:${pctLeft(start).toFixed(3)}%;width:${pctW(normEnd-start).toFixed(3)}%;">
+        <div style="width:100%;height:100%;background:${normalColor};display:flex;align-items:center;justify-content:center;overflow:hidden;">
+          ${label ? `<span style="font-size:10px;font-weight:700;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 3px;">${label}</span>` : ''}
+        </div>
+        <div class="tl-tooltip">${tooltipTitle}<br>${fmt12(start)} → ${fmt12(end)}<br>${fmtMin(end-start)}</div>
+      </div>`;
+    }
+    // portion after OT line (amber = overtime)
+    const otStart = Math.max(start, OT_LINE);
+    if (end > otStart) {
+      html += `<div class="tl-seg-wrap" style="position:absolute;top:0;bottom:0;left:${pctLeft(otStart).toFixed(3)}%;width:${pctW(end-otStart).toFixed(3)}%;">
+        <div style="width:100%;height:100%;background:${OT_COLOR};display:flex;align-items:center;justify-content:center;overflow:hidden;">
+          <span style="font-size:9px;font-weight:800;color:#fff;white-space:nowrap;padding:0 3px;">OT</span>
+        </div>
+        <div class="tl-tooltip">${tooltipTitle} (Overtime)<br>${fmt12(otStart)} → ${fmt12(end)}<br>${fmtMin(end-otStart)} OT</div>
+      </div>`;
+    }
+    return html;
+  }
 
   sorted.forEach((blk, i) => {
-    const coMins = blk.co || 0;
-    // CO sits immediately BEFORE the job: co end = job start, co start = job start - coMins
-    let coStart = blk.start - coMins;
-    // Clamp so CO never renders wider than its real minutes or before the cursor
-    if (coStart < cursor) coStart = cursor;
-    const realCO = Math.max(Math.min(coMins, blk.start - coStart), 0);
+    const style = ACTION_STYLE[blk.action] || ACTION_STYLE.prod;
+    const isProd = (blk.action === 'prod' || blk.action === 'gprod');
+    const coMins = isProd ? (blk.co || 0) : 0;
+    // CO starts AT the logged start time, runs for its duration (production only)
+    const coStart = blk.start;
+    const coEnd   = blk.start + coMins;
+    const prodStart = coEnd;
+    const prodEnd   = blk.end;
 
-    // Gap before the CO/job
-    const firstSeg = realCO > 0 ? coStart : blk.start;
-    if (firstSeg > cursor) {
-      const w = ((firstSeg - cursor) / totalSpan * 100).toFixed(2);
-      segments += `<div class="tl-seg-wrap" style="width:${w}%;"><div style="width:100%;background:#e2e8f0;height:100%;"></div><div class="tl-tooltip">Gap<br>${fmt12(cursor)} → ${fmt12(firstSeg)}<br>${fmtMin(firstSeg-cursor)}</div></div>`;
-      cursor = firstSeg;
+    // Changeover block (production only, drawn after logged start)
+    if (coMins > 0) {
+      segments += drawBlock(coStart, coEnd, CO_COLOR, 'CO', 'Changeover · Job ' + blk.label);
+      totalCO += coMins;
+      actionRanges.push({ type:'co', label:'CO · Job '+blk.label, start:coStart, end:coEnd, dur:coMins });
     }
 
-    // Changeover block — width strictly = realCO minutes
-    if (realCO > 0) {
-      const cw = (realCO / totalSpan * 100).toFixed(2);
-      const coS = blk.start - realCO, coE = blk.start;
-      segments += `<div class="tl-seg-wrap" style="width:${cw}%;"><div style="width:100%;background:#1a2e4a;height:100%;display:flex;align-items:center;justify-content:center;"><span style="font-size:9px;color:rgba(255,255,255,0.7);">CO</span></div><div class="tl-tooltip">Changeover · Job ${blk.label}<br>${fmt12(coS)} → ${fmt12(coE)}<br>${fmtMin(realCO)}</div></div>`;
-      cursor = blk.start;
-      totalCO += realCO;
-      actionRanges.push({ type:'co', label:'CO · Job '+blk.label, start:coS, end:coE, dur:realCO });
+    // Action block (after CO), colored by type
+    if (prodEnd > prodStart) {
+      segments += drawBlock(prodStart, prodEnd, style.color, blk.label, style.name + ' ' + blk.label);
+      totalProd += (prodEnd - prodStart);
+      actionRanges.push({ type: isProd?'job':blk.action, label: style.name+' '+blk.label, start:prodStart, end:prodEnd, dur:prodEnd-prodStart });
     }
-
-    // Job block
-    const w = ((blk.end - blk.start) / totalSpan * 100).toFixed(2);
-    const isLast = i === sorted.length - 1;
-    segments += `<div class="tl-seg-wrap" style="width:${w}%;">
-      <div style="width:100%;background:#2563eb;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;${!isLast ? 'border-right:3px solid #0f172a;' : ''}">
-        <span style="font-size:10px;font-weight:700;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 3px;">${blk.label}</span>
-      </div>
-      <div class="tl-tooltip">Job ${blk.label}<br>${fmt12(blk.start)} → ${fmt12(blk.end)}<br>${fmtMin(blk.end-blk.start)}</div>
-    </div>`;
-    cursor = blk.end;
-    totalProd += (blk.end - blk.start);
-    actionRanges.push({ type:'job', label:'Job '+blk.label, start:blk.start, end:blk.end, dur:blk.end-blk.start });
   });
-
-  if (cursor < shiftEnd) {
-    const w = ((shiftEnd - cursor) / totalSpan * 100).toFixed(2);
-    segments += `<div style="width:${w}%;background:#e2e8f0;height:100%;"></div>`;
-  }
 
   // ── TOP LAYER: breaks ──
   let breakOverlay = '';
@@ -1259,13 +1326,14 @@ function buildTimelineBar(dayProd, date) {
 
   return `<div style="padding:8px 16px 10px;">
     <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:3px;">
-      <span>${fmt12(shiftStart)} ${shiftStart <= SHIFT_START ? '(shift start)' : ''}</span>
+      <span>${fmt12(shiftStart)} (shift start)</span>
       <span style="font-size:10px;color:var(--muted);">Shift Timeline</span>
-      <span>${fmt12(shiftEnd)}</span>
+      <span>${shiftEnd > OT_LINE ? fmt12(OT_LINE)+' end · OT to '+fmt12(shiftEnd) : fmt12(OT_LINE)+' (shift end)'}</span>
     </div>
-    <div style="position:relative;">
-      <div style="display:flex;height:24px;border-radius:6px;overflow:hidden;border:1px solid var(--border);">
+    <div style="position:relative;height:24px;">
+      <div style="position:relative;height:24px;border-radius:6px;overflow:hidden;border:1px solid var(--border);">
         ${segments}
+        ${shiftEnd > OT_LINE ? `<div style="position:absolute;top:0;bottom:0;left:${((OT_LINE-shiftStart)/totalSpan*100).toFixed(2)}%;width:2px;background:#dc2626;z-index:6;" title="Shift end ${fmt12(OT_LINE)}"></div>` : ''}
       </div>
       ${breakOverlay}
     </div>
