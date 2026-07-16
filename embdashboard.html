@@ -86,7 +86,7 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
 .main { max-width: 1060px; margin: 0 auto; padding: 16px 20px 60px; }
 
 /* ── SUMMARY CARDS ── */
-.cards-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 16px; }
+.cards-row { display: grid; grid-template-columns: repeat(5,1fr); gap: 10px; margin-bottom: 16px; }
 .card {
   background: var(--card); border-radius: 8px;
   border: 1px solid var(--border);
@@ -285,6 +285,11 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
           <div class="c-val" id="cPcsHr" style="color:var(--text);">—</div>
           <div class="c-sub" id="cPcsHrSub">—</div>
         </div>
+        <div class="card" style="border:1.5px solid #fed7aa;">
+          <div class="c-label" style="color:#ea580c;">Total Damages</div>
+          <div class="c-val" id="cDmg" style="color:#ea580c;">—</div>
+          <div class="c-sub" id="cDmgSub">—</div>
+        </div>
       </div>
 
       <!-- OPERATOR TABLE -->
@@ -325,10 +330,10 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
       <!-- NOTES / OBSERVATIONS -->
       <div class="section">
         <div class="sec-head">
-          <div class="sec-title-row"><div class="sec-dot"></div><div class="sec-title">Notes & Observations</div></div>
+          <div class="sec-title-row"><div class="sec-dot"></div><div class="sec-title">Department Job Log</div></div>
         </div>
-        <div id="notesLog" style="padding:8px 0;">
-          <div class="empty">No notes logged for this period.</div>
+        <div id="notesLog" style="padding:0;">
+          <div class="empty">No jobs logged for this period.</div>
         </div>
       </div>
 
@@ -361,7 +366,7 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
         </div>
       </div>
 
-      <div class="cards-row" style="grid-template-columns:repeat(6,1fr);">
+      <div class="cards-row" id="opCardsRow" style="grid-template-columns:repeat(6,1fr);">
         <div class="card dark"><div class="c-label">Jobs</div><div class="c-val" id="opCJobs">—</div></div>
         <div class="card dark"><div class="c-label">Pieces</div><div class="c-val" id="opCPcs">—</div></div>
         <div class="card dark"><div class="c-label">Revenue</div><div class="c-val" id="opCRev">—</div></div>
@@ -573,16 +578,22 @@ function renderSummaryCards(data, adj) {
   document.getElementById('cRevSub').textContent  = pcs>0?'$'+(rev/pcs).toFixed(2)+' avg/pc':'—';
   document.getElementById('cPcsHr').textContent   = pcsHr;
   document.getElementById('cPcsHrSub').textContent= adj?'Break-adjusted (incl. manual breaks)':'Net production time';
+
+  // Total department damages
+  const totalDmg = data.reduce((a,j)=>a+(parseInt(j.damages)||0),0);
+  const dmgEl = document.getElementById('cDmg');
+  const dmgSubEl = document.getElementById('cDmgSub');
+  if (dmgEl) dmgEl.textContent = totalDmg;
+  if (dmgSubEl) dmgSubEl.textContent = pcs>0 ? ((totalDmg/pcs)*100).toFixed(2)+'% of pieces' : '—';
 }
 
-// ── OPERATOR TABLE
+// ── OPERATOR BREAKDOWN (cards with per-operator timeline)
 function renderOpTable(data, adj) {
-  // Operators from CONFIG, plus any operator found in the data (so nobody is missed)
   const fromData = [...new Set(data.map(j => j.operator).filter(Boolean))];
   const operators = [...new Set([...configOperators, ...fromData])];
   const wrap = document.getElementById('opTableWrap');
 
-  const rows = operators.map(op=>{
+  const cards = operators.map(op=>{
     const opJobs  = data.filter(j=>j.operator===op);
     const prod    = opJobs.filter(j=>j.action==='prod'||!j.isShay);
     if (!opJobs.length) return null;
@@ -591,44 +602,46 @@ function renderOpTable(data, adj) {
     const pcs     = prod.reduce((a,j)=>a+(parseInt(j.qty)||0),0);
     const rev     = prod.reduce((a,j)=>a+(parseFloat(j.revenue)||0),0);
     const mins    = prod.reduce((a,j)=>a+(parseInt(j.netElapsed||j.elapsed)||0),0);
-
     const opDays  = new Set(prod.map(j=>j.date)).size;
     const adjMins = Math.max(mins - opDays*BREAK_MINS, 1);
-
     const rawPhr  = mins>0?((pcs/mins)*60).toFixed(1):'—';
     const adjPhr  = mins>0?((pcs/adjMins)*60).toFixed(1):'—';
     const pcsHr   = adj?adjPhr:rawPhr;
-
     const machines = [...new Set(opJobs.map(j=>j.machine))].filter(Boolean).join(', ');
 
-    return { op, jobs, pcs, rev, pcsHr, machines };
+    // Timeline only for single-day periods (Today / Yesterday).
+    // Multi-day periods → no timeline here; use the detailed operator view.
+    let timelines = '';
+    if (period === 'today' || period === 'yesterday') {
+      const dates = [...new Set(prod.map(j=>j.date))].sort();
+      dates.forEach(d => {
+        const dayJobs = prod.filter(j=>j.date===d);
+        const bar = buildTimelineBar(dayJobs, d);
+        if (bar) timelines += bar;
+      });
+    }
+
+    return { op, jobs, pcs, rev, pcsHr, machines, timelines };
   }).filter(Boolean).sort((a,b)=>b.rev-a.rev);
 
-  if (!rows.length) {
+  if (!cards.length) {
     wrap.innerHTML = '<div class="empty">No data for selected period.</div>';
     return;
   }
 
-  wrap.innerHTML = `<table class="op-table">
-    <thead><tr>
-      <th>Operator</th>
-      <th>Jobs</th>
-      <th>Pieces</th>
-      <th>Revenue</th>
-      <th>Pcs/Hr${adj?' (Adj)':''}</th>
-      <th>Machine</th>
-    </tr></thead>
-    <tbody>
-      ${rows.map(r=>`<tr onclick="openOp('${r.op}')">
-        <td><span class="op-link">${r.op}</span></td>
-        <td>${r.jobs}</td>
-        <td>${r.pcs.toLocaleString()}</td>
-        <td class="rev-strong">$${r.rev.toFixed(2)}</td>
-        <td>${r.pcsHr}</td>
-        <td style="font-size:12px;color:var(--muted);">${r.machines||'—'}</td>
-      </tr>`).join('')}
-    </tbody>
-  </table>`;
+  wrap.innerHTML = cards.map(r => `
+    <div style="border:1px solid var(--border);border-radius:10px;margin-bottom:12px;overflow:hidden;">
+      <div onclick="openOp('${r.op}')" style="display:grid;grid-template-columns:2fr 1fr 1fr 1.3fr 1fr 1.3fr;align-items:center;padding:12px 16px;cursor:pointer;background:#fff;gap:8px;">
+        <div><span class="op-link" style="font-weight:700;">${r.op}</span></div>
+        <div style="text-align:center;"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Jobs</div><div style="font-weight:700;">${r.jobs}</div></div>
+        <div style="text-align:center;"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Pieces</div><div style="font-weight:700;">${r.pcs.toLocaleString()}</div></div>
+        <div style="text-align:center;"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Revenue</div><div style="font-weight:700;color:var(--green);">$${r.rev.toFixed(2)}</div></div>
+        <div style="text-align:center;"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Pcs/Hr${adj?' (Adj)':''}</div><div style="font-weight:700;">${r.pcsHr}</div></div>
+        <div style="text-align:center;"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Machine</div><div style="font-size:12px;color:var(--muted);">${r.machines||'—'}</div></div>
+      </div>
+      ${r.timelines ? `<div style="border-top:1px solid var(--border);background:#fbfcfe;">${r.timelines}</div>` : ''}
+    </div>
+  `).join('');
 }
 
 // ── MACHINE CHART
@@ -677,13 +690,13 @@ function renderLeadActivity(data) {
     <div class="lead-val">${samples.length}</div>
     <div class="lead-sub">sample${samples.length!==1?'s':''} run</div>
     <div class="lead-list">
-      ${samples.slice(0,5).map(j=>`
+      ${samples.slice(0,3).map(j=>`
         <div class="lead-item">
           <div><strong>${j.jobNum}</strong> — ${j.jobName}</div>
           <div class="li-meta">${j.sampleType} · ${j.numColors} colors · Intended: ${j.intendedQty} pcs</div>
           ${j.colors ? `<div class="li-meta">${Array.isArray(j.colors) ? j.colors.map(c=>`${c.name}: ${c.spools} spools`).join(' · ') : j.colors}</div>` : ''}
         </div>`).join('')}
-      ${samples.length>5?`<div style="font-size:11px;color:var(--muted);padding-top:4px;">+${samples.length-5} more</div>`:''}
+      ${samples.length>3?`<div style="font-size:11px;color:var(--muted);padding-top:4px;">+${samples.length-3} more</div>`:''}
     </div>
   </div>`;
 
@@ -693,12 +706,12 @@ function renderLeadActivity(data) {
     <div class="lead-val">${cos.length}</div>
     <div class="lead-sub">${totalCOmins} min total</div>
     <div class="lead-list">
-      ${cos.slice(0,5).map(j=>`
+      ${cos.slice(0,3).map(j=>`
         <div class="lead-item">
           <div><strong>${j.jobNum}</strong> — ${j.jobName}</div>
           <div class="li-meta">Assisted: ${j.coOp} · ${j.coDur} min</div>
         </div>`).join('')}
-      ${cos.length>5?`<div style="font-size:11px;color:var(--muted);padding-top:4px;">+${cos.length-5} more</div>`:''}
+      ${cos.length>3?`<div style="font-size:11px;color:var(--muted);padding-top:4px;">+${cos.length-3} more</div>`:''}
     </div>
   </div>`;
 
@@ -708,12 +721,12 @@ function renderLeadActivity(data) {
     <div class="lead-val">${edits.length}</div>
     <div class="lead-sub">${totalEditMins} min total</div>
     <div class="lead-list">
-      ${edits.slice(0,5).map(j=>`
+      ${edits.slice(0,3).map(j=>`
         <div class="lead-item">
           <div><strong>${j.jobNum}</strong> — ${j.jobName}</div>
           <div class="li-meta">Asset: ${j.assetCode} · ${j.editDur} min</div>
         </div>`).join('')}
-      ${edits.length>5?`<div style="font-size:11px;color:var(--muted);padding-top:4px;">+${edits.length-5} more</div>`:''}
+      ${edits.length>3?`<div style="font-size:11px;color:var(--muted);padding-top:4px;">+${edits.length-3} more</div>`:''}
     </div>
   </div>`;
 
@@ -731,22 +744,105 @@ function renderLeadActivity(data) {
   el.innerHTML = html;
 }
 
-// ── NOTES LOG
+// ── DEPARTMENT JOB LOG (everything made, grouped by day, same structure as operator detail)
 function renderNotes(data) {
-  const withNotes = data.filter(j=>j.notes&&j.notes.trim());
   const el = document.getElementById('notesLog');
-  if (!withNotes.length) { el.innerHTML='<div class="empty">No notes logged for this period.</div>'; return; }
-  el.innerHTML = withNotes.map(j=>`
-    <div style="padding:8px 16px;border-bottom:1px solid var(--border);">
-      <div style="display:flex;gap:10px;align-items:flex-start;">
-        <span style="font-size:11px;font-weight:600;color:var(--accent);white-space:nowrap;">${j.jobNum}</span>
-        <div>
-          <span style="font-size:12px;font-weight:500;">${j.jobName}</span>
-          <span style="font-size:11px;color:var(--muted);margin-left:8px;">${j.operator} · ${j.date}</span>
-          <div style="font-size:12px;color:var(--text);margin-top:3px;">${j.notes}</div>
+  const DAILY_TARGET = 200;
+
+  // Group by date
+  const byDate = {};
+  data.forEach(j => {
+    if (!byDate[j.date]) byDate[j.date] = [];
+    byDate[j.date].push(j);
+  });
+  const sortedDates = Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
+
+  if (!sortedDates.length) {
+    el.innerHTML = '<div class="empty">No jobs logged for this period.</div>';
+    return;
+  }
+
+  let html = '';
+
+  sortedDates.forEach(date => {
+    const dayJobs  = byDate[date];
+    const dayProd  = dayJobs.filter(j=>j.action==='prod'||!j.isShay);
+    const dayPcs   = dayProd.reduce((a,j)=>a+(parseInt(j.qty)||0),0);
+    const dayRev   = dayProd.reduce((a,j)=>a+(parseFloat(j.revenue)||0),0);
+    const dayDmg   = dayJobs.reduce((a,j)=>a+(parseInt(j.damages)||0),0);
+    const dayLabel = new Date(date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+
+    // No timeline in the department log — it lives in Operator Breakdown
+    const conflicts = detectConflicts(dayProd);
+
+    html += `<div style="border-bottom:2px solid var(--border);">
+      <div style="background:#f1f5f9;padding:9px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+        <div style="font-size:12px;font-weight:700;color:var(--text);">${dayLabel}</div>
+        <div style="display:flex;gap:14px;align-items:center;font-size:11px;color:var(--muted);">
+          <span>${dayJobs.length} jobs</span>
+          <span><b style="color:var(--text);">${dayPcs}</b> pcs</span>
+          ${dayDmg > 0 ? `<span style="color:var(--amber);font-weight:600;">⚠ ${dayDmg} dmg</span>` : '<span>0 dmg</span>'}
+          <span style="font-weight:700;color:var(--green);">$${dayRev.toFixed(2)}</span>
+          ${conflicts.length > 0 ? `<span style="background:#fee2e2;color:var(--red);font-weight:700;padding:2px 7px;border-radius:10px;">⚠ ${conflicts.length} time conflict${conflicts.length>1?'s':''}</span>` : ''}
         </div>
       </div>
-    </div>`).join('') + '<div style="height:4px;"></div>';
+
+      <table class="detail-table">
+        <thead><tr>
+          <th>Job #</th><th>Operator</th><th>Description</th><th>Pcs</th><th>Pcs/Hr</th>
+          <th>Duration</th><th>Damages</th><th>Revenue</th>
+        </tr></thead>
+        <tbody>
+          ${dayJobs.sort((a,b)=>(parseTimeStr(a.startTime)||0)-(parseTimeStr(b.startTime)||0)).map(j => {
+            const chip = j.isShay ? chipFor(j) : '';
+            const netM = parseInt(j.netElapsed||j.elapsed)||0;
+            const jPcsHr = netM > 0 ? ((parseInt(j.qty)||0)/netM*60).toFixed(1) : '—';
+            let deductStr = '';
+            if (j.breakLog) {
+              try {
+                const bl = typeof j.breakLog === 'string' ? JSON.parse(j.breakLog) : j.breakLog;
+                if (Array.isArray(bl) && bl.length) {
+                  deductStr = ' · breaks: ' + bl.map(b => `${b.startTime}–${b.stopTime}`).join(', ');
+                }
+              } catch(e) {}
+            }
+            const jDmg = parseInt(j.damages)||0;
+            const isConflict = conflicts.some(c => c.jobNum === j.jobNum && c.startTime === j.startTime);
+            let meta='', rev2='';
+            if (j.action==='prod'||!j.isShay) {
+              meta = `${j.machine} · ${j.startTime}→${j.stopTime}${deductStr} · CO:${j.changeover}m · Runtime:${j.runtime}m`;
+              rev2 = `<span style="font-weight:700;color:var(--green);">$${parseFloat(j.revenue||0).toFixed(2)}</span>`;
+            } else if (j.action==='sample') {
+              meta = `${j.sampleType||''} · ${j.numColors||0} colors · Intended: ${j.intendedQty||0} pcs`;
+              rev2 = `<span style="font-size:11px;color:var(--muted);">Sample</span>`;
+            } else if (j.action==='co') {
+              meta = `Assisted: ${j.coOp||''} · ${j.coDur||0} min`;
+              rev2 = `<span style="font-size:11px;color:var(--muted);">${j.coDur||0}m</span>`;
+            } else if (j.action==='edit') {
+              meta = `Asset: ${j.assetCode||''} · ${j.editDur||0} min`;
+              rev2 = `<span style="font-size:11px;color:var(--muted);">${j.editDur||0}m edit</span>`;
+            }
+            return `<tr>
+              <td><span class="job-num-cell">${j.jobNum}</span></td>
+              <td style="font-size:12px;font-weight:600;">${j.operator||'—'}</td>
+              <td>
+                <div style="font-weight:500;">${j.jobName} ${chip}${isConflict ? '<span style="background:#fee2e2;color:var(--red);font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;margin-left:6px;">⚠ Time Conflict</span>' : ''}</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:1px;">${meta}</div>
+                ${j.notes?`<div style="font-size:11px;color:var(--muted);font-style:italic;margin-top:1px;">📝 ${j.notes}</div>`:''}
+              </td>
+              <td style="font-weight:600;">${j.qty||'—'}</td>
+              <td>${jPcsHr}</td>
+              <td style="font-size:12px;">${fmtMin(netM)}</td>
+              <td>${jDmg > 0 ? `<span style="background:#fff7ed;color:var(--amber);font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;">⚠ ${jDmg}</span>` : '—'}</td>
+              <td>${rev2}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  });
+
+  el.innerHTML = html;
 }
 
 // ═══════════════════════════════════════════════
@@ -796,26 +892,43 @@ function renderOpDetail() {
 
   document.getElementById('opDetailSub').textContent  = `${periodLabel(opPeriod)} · ${jobs} job${jobs!==1?'s':''}`;
   document.getElementById('opJobLogTitle').textContent = `Job Log — ${periodLabel(opPeriod)}`;
-  document.getElementById('opCJobs').textContent  = jobs;
-  document.getElementById('opCPcs').textContent   = pcs;
-  document.getElementById('opCRev').textContent   = '$'+rev.toFixed(2);
-  document.getElementById('opCPcsHr').textContent = pcsHr;
-  document.getElementById('opCDmg').textContent   = dmg;
-  document.getElementById('opCDmgRate').textContent = pcs>0 ? ((dmg/pcs)*100).toFixed(2)+'% rate' : '';
-  document.getElementById('opCHours').textContent  = hoursWorked.label;
-  document.getElementById('opCHoursSub').textContent = hoursWorked.days > 0 ? hoursWorked.days+' day'+(hoursWorked.days!==1?'s':'') : '';
 
-  // Target
-  const machines = [...new Set(prod.map(j=>j.machine))].filter(Boolean);
-  const target   = machines.length===1?(MACHINE_TARGETS[machines[0]]||0):0;
-  const tEl      = document.getElementById('opCTarget');
-  if (target && opPeriod==='today') {
-    const hit  = rev>=target;
-    const diff = Math.abs(rev-target).toFixed(0);
-    tEl.textContent = hit?`✓ Hit (+$${diff})`:`$${diff} to target`;
-    tEl.style.color = hit?'var(--green)':'var(--red)';
-    tEl.style.fontSize = '11px'; tEl.style.fontWeight = '600'; tEl.style.marginTop='3px';
-  } else { tEl.textContent=''; }
+  // Is this operator a LEAD? (any job flagged isShay = lead-style entries)
+  const isLead = opData.some(j => j.isShay);
+  const cardsRow = document.getElementById('opCardsRow');
+
+  if (isLead) {
+    // Lead-focused KPIs: samples, CO assists, file edits, production, hours, damages
+    const samples = opData.filter(j=>j.action==='sample');
+    const cos     = opData.filter(j=>j.action==='co');
+    const edits   = opData.filter(j=>j.action==='edit');
+    const gprods  = opData.filter(j=>j.action==='gprod'||j.action==='prod');
+    const coMins    = cos.reduce((a,j)=>a+(parseInt(j.coDur)||0),0);
+    const editMins  = edits.reduce((a,j)=>a+(parseInt(j.editDur)||0),0);
+    const gPcs      = gprods.reduce((a,j)=>a+(parseInt(j.qty)||0),0);
+    const gRev      = gprods.reduce((a,j)=>a+(parseFloat(j.revenue)||0),0);
+
+    cardsRow.style.gridTemplateColumns = 'repeat(6,1fr)';
+    cardsRow.innerHTML = `
+      <div class="card dark"><div class="c-label">Samples Run</div><div class="c-val">${samples.length}</div></div>
+      <div class="card dark"><div class="c-label">CO Assists</div><div class="c-val">${cos.length}</div><div class="c-sub">${coMins} min total</div></div>
+      <div class="card dark"><div class="c-label">File Edits</div><div class="c-val">${edits.length}</div><div class="c-sub">${editMins} min total</div></div>
+      <div class="card dark"><div class="c-label">Production Jobs</div><div class="c-val">${gprods.length}</div><div class="c-sub">${gPcs} pcs · $${gRev.toFixed(2)}</div></div>
+      <div class="card" style="border:1.5px solid #fed7aa;"><div class="c-label" style="color:var(--amber);">Damages</div><div class="c-val" style="color:var(--amber);">${dmg}</div></div>
+      <div class="card"><div class="c-label">Hours Worked</div><div class="c-val" style="color:var(--text);">${hoursWorked.label}</div><div class="c-sub">${hoursWorked.days > 0 ? hoursWorked.days+' day'+(hoursWorked.days!==1?'s':'') : ''}</div></div>
+    `;
+  } else {
+    // Standard production KPIs
+    cardsRow.style.gridTemplateColumns = 'repeat(6,1fr)';
+    cardsRow.innerHTML = `
+      <div class="card dark"><div class="c-label">Jobs</div><div class="c-val">${jobs}</div></div>
+      <div class="card dark"><div class="c-label">Pieces</div><div class="c-val">${pcs}</div></div>
+      <div class="card dark"><div class="c-label">Revenue</div><div class="c-val">$${rev.toFixed(2)}</div></div>
+      <div class="card dark"><div class="c-label">Pcs / Hr</div><div class="c-val">${pcsHr}</div></div>
+      <div class="card" style="border:1.5px solid #fed7aa;"><div class="c-label" style="color:var(--amber);">Damages</div><div class="c-val" style="color:var(--amber);">${dmg}</div><div class="c-sub" style="color:var(--amber);">${pcs>0 ? ((dmg/pcs)*100).toFixed(2)+'% rate' : ''}</div></div>
+      <div class="card"><div class="c-label">Hours Worked</div><div class="c-val" style="color:var(--text);">${hoursWorked.label}</div><div class="c-sub">${hoursWorked.days > 0 ? hoursWorked.days+' day'+(hoursWorked.days!==1?'s':'') : ''}</div></div>
+    `;
+  }
 
   const logEl = document.getElementById('opJobLog');
   if (!opData.length) { logEl.innerHTML='<div class="empty">No jobs for selected period.</div>'; return; }
@@ -1002,9 +1115,16 @@ function detectConflicts(dayProd) {
   return conflicts;
 }
 
-// ── TIMELINE BAR: clock-style from first start to last stop
+// ── TIMELINE BAR: clock-style, two-layer, with CO fix + daily totals
 function buildTimelineBar(dayProd, date) {
   if (!dayProd.length) return '';
+
+  const fmt12 = mins => {
+    let h = Math.floor(mins/60), m = mins%60, ap = 'AM';
+    if (h >= 12) { ap = 'PM'; if (h > 12) h -= 12; }
+    if (h === 0) h = 12;
+    return `${h}:${m.toString().padStart(2,'0')} ${ap}`;
+  };
 
   const jobBlocks = [];
   let shiftStart = Infinity, shiftEnd = 0;
@@ -1018,7 +1138,6 @@ function buildTimelineBar(dayProd, date) {
       if (s < shiftStart) shiftStart = s;
       if (e > shiftEnd)   shiftEnd   = e;
     }
-    // collect breaks stored with the job
     if (j.breakLog) {
       try {
         const bl = typeof j.breakLog === 'string' ? JSON.parse(j.breakLog) : j.breakLog;
@@ -1027,7 +1146,7 @@ function buildTimelineBar(dayProd, date) {
     }
   });
 
-  // De-dupe breaks (same break may be attached to multiple jobs)
+  // De-dupe breaks
   const seenBreaks = {};
   const dedupBreaks = [];
   allBreaks.forEach(b => {
@@ -1041,7 +1160,6 @@ function buildTimelineBar(dayProd, date) {
 
   const SHIFT_START = 8 * 60;
   shiftStart = Math.min(shiftStart, SHIFT_START);
-  // expand to include breaks outside job windows
   allBreaks.forEach(b => {
     if (b.startMins < shiftStart) shiftStart = b.startMins;
     if (b.endMins   > shiftEnd)   shiftEnd   = b.endMins;
@@ -1050,34 +1168,43 @@ function buildTimelineBar(dayProd, date) {
   const totalSpan = shiftEnd - shiftStart;
   if (totalSpan <= 0) return '';
 
-  const fmt12 = mins => {
-    let h = Math.floor(mins/60), m = mins%60, ap = 'AM';
-    if (h >= 12) { ap = 'PM'; if (h > 12) h -= 12; }
-    if (h === 0) h = 12;
-    return `${h}:${m.toString().padStart(2,'0')} ${ap}`;
-  };
-
   const sorted = [...jobBlocks].sort((a,b)=>a.start-b.start);
 
-  // ── BOTTOM LAYER: jobs + changeovers + gaps ──
+  // Track totals + action ranges for the breakdown under the bar
+  let totalCO = 0, totalProd = 0;
+  const actionRanges = []; // {type, label, start, end, dur}
+
+  // ── BOTTOM LAYER ──
   let segments = '';
   let cursor = shiftStart;
 
   sorted.forEach((blk, i) => {
     const coMins = blk.co || 0;
-    const coStart = blk.start - coMins;
-    const segStart = coMins > 0 ? coStart : blk.start;
+    // CO sits immediately BEFORE the job: co end = job start, co start = job start - coMins
+    let coStart = blk.start - coMins;
+    // Clamp so CO never renders wider than its real minutes or before the cursor
+    if (coStart < cursor) coStart = cursor;
+    const realCO = Math.max(Math.min(coMins, blk.start - coStart), 0);
 
-    if (segStart > cursor) {
-      const w = ((segStart - cursor) / totalSpan * 100).toFixed(2);
-      segments += `<div class="tl-seg-wrap" style="width:${w}%;"><div style="width:100%;background:#e2e8f0;height:100%;"></div><div class="tl-tooltip">Gap<br>${fmt12(cursor)} → ${fmt12(segStart)}<br>${fmtMin(segStart-cursor)}</div></div>`;
-      cursor = segStart;
+    // Gap before the CO/job
+    const firstSeg = realCO > 0 ? coStart : blk.start;
+    if (firstSeg > cursor) {
+      const w = ((firstSeg - cursor) / totalSpan * 100).toFixed(2);
+      segments += `<div class="tl-seg-wrap" style="width:${w}%;"><div style="width:100%;background:#e2e8f0;height:100%;"></div><div class="tl-tooltip">Gap<br>${fmt12(cursor)} → ${fmt12(firstSeg)}<br>${fmtMin(firstSeg-cursor)}</div></div>`;
+      cursor = firstSeg;
     }
-    if (coMins > 0 && coStart >= shiftStart) {
-      const cw = (coMins / totalSpan * 100).toFixed(2);
-      segments += `<div class="tl-seg-wrap" style="width:${cw}%;"><div style="width:100%;background:#1a2e4a;height:100%;display:flex;align-items:center;justify-content:center;"><span style="font-size:9px;color:rgba(255,255,255,0.7);">CO</span></div><div class="tl-tooltip">Changeover · Job ${blk.label}<br>${coMins}min</div></div>`;
-      cursor += coMins;
+
+    // Changeover block — width strictly = realCO minutes
+    if (realCO > 0) {
+      const cw = (realCO / totalSpan * 100).toFixed(2);
+      const coS = blk.start - realCO, coE = blk.start;
+      segments += `<div class="tl-seg-wrap" style="width:${cw}%;"><div style="width:100%;background:#1a2e4a;height:100%;display:flex;align-items:center;justify-content:center;"><span style="font-size:9px;color:rgba(255,255,255,0.7);">CO</span></div><div class="tl-tooltip">Changeover · Job ${blk.label}<br>${fmt12(coS)} → ${fmt12(coE)}<br>${fmtMin(realCO)}</div></div>`;
+      cursor = blk.start;
+      totalCO += realCO;
+      actionRanges.push({ type:'co', label:'CO · Job '+blk.label, start:coS, end:coE, dur:realCO });
     }
+
+    // Job block
     const w = ((blk.end - blk.start) / totalSpan * 100).toFixed(2);
     const isLast = i === sorted.length - 1;
     segments += `<div class="tl-seg-wrap" style="width:${w}%;">
@@ -1087,6 +1214,8 @@ function buildTimelineBar(dayProd, date) {
       <div class="tl-tooltip">Job ${blk.label}<br>${fmt12(blk.start)} → ${fmt12(blk.end)}<br>${fmtMin(blk.end-blk.start)}</div>
     </div>`;
     cursor = blk.end;
+    totalProd += (blk.end - blk.start);
+    actionRanges.push({ type:'job', label:'Job '+blk.label, start:blk.start, end:blk.end, dur:blk.end-blk.start });
   });
 
   if (cursor < shiftEnd) {
@@ -1094,15 +1223,39 @@ function buildTimelineBar(dayProd, date) {
     segments += `<div style="width:${w}%;background:#e2e8f0;height:100%;"></div>`;
   }
 
-  // ── TOP LAYER: break overlays positioned by clock time ──
+  // ── TOP LAYER: breaks ──
   let breakOverlay = '';
+  let totalBreak = 0;
   allBreaks.forEach(b => {
     const left  = ((b.startMins - shiftStart) / totalSpan * 100);
     const width = Math.max(((b.endMins - b.startMins) / totalSpan * 100), 1.2);
     const bColor = b.color || '#f59e0b';
     const overNote = (b.over && b.over > 3) ? ` (${b.over}min over)` : '';
     breakOverlay += `<div class="tl-break-ov" style="left:${left.toFixed(2)}%;width:${width.toFixed(2)}%;background:${bColor};"><span>B</span><div class="tl-tooltip">${b.label}<br>${b.startTime} → ${b.stopTime}${overNote}</div></div>`;
+    totalBreak += (b.duration || 0);
   });
+
+  // ── Daily totals row ──
+  const totalsRow = `<div style="display:flex;gap:14px;margin-top:8px;flex-wrap:wrap;font-size:11px;">
+    <div style="display:flex;align-items:center;gap:5px;"><div style="width:9px;height:9px;border-radius:2px;background:#2563eb;"></div><b style="color:var(--text);">Machine time:</b> ${fmtMin(totalProd)}</div>
+    <div style="display:flex;align-items:center;gap:5px;"><div style="width:9px;height:9px;border-radius:2px;background:#1a2e4a;"></div><b style="color:var(--text);">Changeover:</b> ${fmtMin(totalCO)}</div>
+    ${totalBreak>0 ? `<div style="display:flex;align-items:center;gap:5px;"><div style="width:9px;height:9px;border-radius:2px;background:#f59e0b;"></div><b style="color:var(--text);">Breaks:</b> ${fmtMin(totalBreak)}</div>` : ''}
+  </div>`;
+
+  // ── Per-action time ranges (like the break breakdown) ──
+  const merged = [
+    ...actionRanges,
+    ...allBreaks.map(b => ({ type:'break', label:b.label, start:b.startMins, end:b.endMins, dur:b.duration||0 }))
+  ].sort((a,b) => a.start - b.start);
+
+  const rangeItems = merged.map(a => {
+    const color = a.type==='job' ? '#2563eb' : a.type==='co' ? '#1a2e4a' : '#f59e0b';
+    return `<div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);">
+      <div style="width:8px;height:8px;border-radius:2px;background:${color};flex-shrink:0;"></div>
+      ${a.label}: ${fmt12(a.start)} – ${fmt12(a.end)} (${fmtMin(a.dur)})
+    </div>`;
+  }).join('');
+  const rangesRow = `<div style="display:flex;gap:12px 16px;margin-top:6px;flex-wrap:wrap;">${rangeItems}</div>`;
 
   return `<div style="padding:8px 16px 10px;">
     <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:3px;">
@@ -1116,15 +1269,8 @@ function buildTimelineBar(dayProd, date) {
       </div>
       ${breakOverlay}
     </div>
-    <div style="display:flex;gap:12px;margin-top:6px;flex-wrap:wrap;">
-      <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);"><div style="width:8px;height:8px;border-radius:2px;background:#2563eb;flex-shrink:0;"></div>Job</div>
-      <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);"><div style="width:8px;height:8px;border-radius:2px;background:#1a2e4a;flex-shrink:0;"></div>Changeover</div>
-      ${allBreaks.length ? '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);"><div style="width:8px;height:8px;border-radius:2px;background:#f59e0b;flex-shrink:0;"></div>Break</div>' : ''}
-      <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);">
-        <div style="width:8px;height:8px;border-radius:2px;background:#e2e8f0;flex-shrink:0;"></div>
-        Gap / untracked
-      </div>
-    </div>
+    ${totalsRow}
+    ${rangesRow}
   </div>`;
 }
 
