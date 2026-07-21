@@ -587,7 +587,7 @@ function renderDept() {
 
 // ── SUMMARY CARDS
 function renderSummaryCards(data, adj) {
-  const prod  = data.filter(j=>j.action==='prod'||!j.isShay);
+  const prod  = data.filter(j=>(j.action==='prod'||!j.isShay) && j.action!=='misc');
   const jobs  = data.length;
   const pcs   = prod.reduce((a,j)=>a+(parseInt(j.qty)||0),0);
   const rev   = prod.reduce((a,j)=>a+(parseFloat(j.revenue)||0),0);
@@ -626,7 +626,7 @@ function renderOpTable(data, adj) {
 
   const cards = operators.map(op=>{
     const opJobs  = data.filter(j=>j.operator===op);
-    const prod    = opJobs.filter(j=>j.action==='prod'||!j.isShay);
+    const prod    = opJobs.filter(j=>(j.action==='prod'||!j.isShay) && j.action!=='misc');
     if (!opJobs.length) return null;
 
     const jobs    = opJobs.length;
@@ -644,7 +644,7 @@ function renderOpTable(data, adj) {
     // Multi-day periods → no timeline here; use the detailed operator view.
     let timelines = '';
     if (period === 'today' || period === 'yesterday') {
-      const TIMED = ['prod','gprod','sample','co','edit'];
+      const TIMED = ['prod','gprod','sample','co','edit','misc'];
       const dates = [...new Set(opJobs.map(j=>j.date))].sort();
       dates.forEach(d => {
         const dayJobs = opJobs.filter(j=>j.date===d && (TIMED.includes(j.action) || !j.isShay));
@@ -798,7 +798,7 @@ function renderNotes(data) {
 
   sortedDates.forEach(date => {
     const dayJobs  = byDate[date];
-    const dayProd  = dayJobs.filter(j=>j.action==='prod'||!j.isShay);
+    const dayProd  = dayJobs.filter(j=>(j.action==='prod'||!j.isShay) && j.action!=='misc');
     const dayPcs   = dayProd.reduce((a,j)=>a+(parseInt(j.qty)||0),0);
     const dayRev   = dayProd.reduce((a,j)=>a+(parseFloat(j.revenue)||0),0);
     const dayDmg   = dayJobs.reduce((a,j)=>a+(parseInt(j.damages)||0),0);
@@ -908,7 +908,7 @@ function renderOpDetail() {
   const opLbl   = document.getElementById('opToggleLbl');
   if (opLbl) opLbl.textContent = adj ? 'Adjusted' : 'Raw';
   const opData  = filterByPeriod(allData.filter(j=>j.operator===opName), opPeriod);
-  const prod    = opData.filter(j=>j.action==='prod'||!j.isShay);
+  const prod    = opData.filter(j=>(j.action==='prod'||!j.isShay) && j.action!=='misc');
 
   const jobs    = opData.length;
   const pcs     = prod.reduce((a,j)=>a+(parseInt(j.qty)||0),0);
@@ -981,7 +981,7 @@ function renderOpDetail() {
 
   sortedDates.forEach(date => {
     const dayJobs  = byDate[date];
-    const dayProd  = dayJobs.filter(j=>j.action==='prod'||!j.isShay);
+    const dayProd  = dayJobs.filter(j=>(j.action==='prod'||!j.isShay) && j.action!=='misc');
     const dayPcs   = dayProd.reduce((a,j)=>a+(parseInt(j.qty)||0),0);
     const dayRev   = dayProd.reduce((a,j)=>a+(parseFloat(j.revenue)||0),0);
     const dayDmg   = dayJobs.reduce((a,j)=>a+(parseInt(j.damages)||0),0);
@@ -1002,7 +1002,7 @@ function renderOpDetail() {
     const dayLabel = new Date(date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
 
     // Timeline bar — include lead actions (sample/co/edit/gprod), not just production
-    const TIMED = ['prod','gprod','sample','co','edit'];
+    const TIMED = ['prod','gprod','sample','co','edit','misc'];
     const dayTimed = dayJobs.filter(j => TIMED.includes(j.action) || !j.isShay);
     const timelineBar = buildTimelineBar(dayTimed, date);
 
@@ -1236,7 +1236,8 @@ function buildTimelineBar(dayProd, date) {
     gprod:  { color:'#2563eb', name:'Production' },
     sample: { color:'#0d9488', name:'Sample' },
     co:     { color:'#7c3aed', name:'CO Assist' },
-    edit:   { color:'#4d7c5f', name:'File Edit' }
+    edit:   { color:'#4d7c5f', name:'File Edit' },
+    misc:   { color:'#0d9488', name:'Misc' }
   };
 
   // Helper: draw a block that may straddle the OT line — normal color before, amber after

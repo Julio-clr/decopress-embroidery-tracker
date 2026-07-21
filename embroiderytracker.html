@@ -18,6 +18,8 @@
   --text:    #0f172a;
   --muted:   #64748b;
   --light:   #f8fafc;
+  --teal:      #0d9488;
+  --teal-light:#f0fdfa;
   --green:   #16a34a;
   --red:     #dc2626;
   --amber:   #d97706;
@@ -412,6 +414,12 @@ textarea { resize: vertical; min-height: 50px; }
   margin-top: 2px;
 }
 .btn-save:hover:not(:disabled) { background: var(--accent2); }
+.mp-toggle { display:flex; gap:8px; margin-bottom:14px; }
+.mp-btn { flex:1; padding:11px; border:1.5px solid var(--border); border-radius:8px; background:#fff; cursor:pointer; text-align:center; transition:all .12s; user-select:none; }
+.mp-btn.on-blue { border-color:var(--accent); background:#eff6ff; }
+.mp-btn.on-teal { border-color:var(--teal); background:var(--teal-light); }
+.mp-title { font-size:14px; font-weight:700; color:var(--text); }
+.mp-sub { font-size:11px; color:var(--muted); margin-top:2px; }
 .btn-save:disabled { background: var(--muted); cursor: not-allowed; }
 
 .btn-sm {
@@ -436,6 +444,8 @@ textarea { resize: vertical; min-height: 50px; }
   transition: color 0.12s, background 0.12s;
 }
 .del-btn:hover { color: var(--red); background: #fee2e2; }
+.edit-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 15px; padding: 2px 6px; border-radius: 5px; margin-left: 2px; }
+.edit-btn:hover { color: var(--accent); background: #eff6ff; }
 
 /* ALERT */
 .alert { border-radius: 6px; padding: 9px 13px; font-size: 13px; font-weight: 500; margin-bottom: 12px; display: none; }
@@ -463,8 +473,14 @@ textarea { resize: vertical; min-height: 50px; }
 .tl-sub { font-size: 11px; color: var(--muted); }
 .tl-body { padding: 12px 16px 14px; }
 .tl-axis { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-bottom: 3px; }
-.tl-bar { display: flex; height: 30px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 8px; }
-.tl-seg { display: flex; align-items: center; justify-content: center; overflow: hidden; transition: width 0.3s; }
+.tl-bar { display: flex; height: 30px; border-radius: 6px; overflow: visible; border: 1px solid var(--border); margin-bottom: 8px; position: relative; }
+.tl-seg { display: flex; align-items: center; justify-content: center; overflow: visible; transition: width 0.3s; position: relative; }
+.tl-seg:first-child { border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
+.tl-seg:last-child { border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
+.tl-tooltip { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: var(--navy); color: #fff; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; white-space: nowrap; z-index: 50; display: none; box-shadow: 0 3px 10px rgba(0,0,0,0.25); pointer-events: none; }
+.tl-tooltip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 5px solid transparent; border-top-color: var(--navy); }
+.tl-seg:hover .tl-tooltip, .tl-break-overlay:hover .tl-tooltip { display: block; }
+.tl-tooltip .tt-sub { font-weight: 500; color: #cbd5e1; font-size: 10px; margin-top: 1px; }
 .tl-seg span { font-size: 10px; font-weight: 700; color: #fff; white-space: nowrap; padding: 0 4px; overflow: hidden; text-overflow: ellipsis; }
 .gap-seg { background: #e2e8f0; }
 .future-seg { background: repeating-linear-gradient(45deg,#e2e8f0,#e2e8f0 4px,#f1f5f9 4px,#f1f5f9 8px); }
@@ -596,10 +612,22 @@ textarea { resize: vertical; min-height: 50px; }
     </div>
     <div class="section-body">
 
+      <!-- ══ MISC PRODUCTION TOGGLE (regular operators only) ══ -->
+      <div class="mp-toggle" id="mpToggle">
+        <div class="mp-btn on-blue" id="mpProd" onclick="setMiscMode('prod')">
+          <div class="mp-title">Embroidery Job</div>
+          <div class="mp-sub">Job # · qty · price · placement</div>
+        </div>
+        <div class="mp-btn" id="mpMisc" onclick="setMiscMode('misc')">
+          <div class="mp-title">Misc Production</div>
+          <div class="mp-sub">Non-production time</div>
+        </div>
+      </div>
+
       <!-- Job # + Name — always -->
       <div class="row c2">
         <div class="fg">
-          <label>Job Number <span class="req">*</span></label>
+          <label>Job Number <span class="req" id="jobNumReq">*</span></label>
           <input type="text" id="fJobNum" placeholder="e.g. 10045" />
         </div>
         <div class="fg">
@@ -748,6 +776,7 @@ textarea { resize: vertical; min-height: 50px; }
       <!-- ══ PRODUCTION FIELDS ══ -->
       <div id="regularFields">
 
+        <div id="regProdFields">
         <div class="row c2">
           <div class="fg">
             <label>Unit Qty <span class="req">*</span></label>
@@ -758,6 +787,34 @@ textarea { resize: vertical; min-height: 50px; }
             <input type="number" id="fUnitPrice" placeholder="0.00" min="0" step="0.01" oninput="calcTotalRevenue()" />
           </div>
         </div>
+
+        <div class="row c3">
+          <div class="fg">
+            <label>Machine Runtime (min) <span class="req">*</span></label>
+            <input type="number" id="fRuntime" placeholder="Stitch time in minutes" min="1" />
+          </div>
+          <div class="fg">
+            <label>Changeover <span class="req">*</span></label>
+            <select id="fChangeover">
+              <option value="">— Select —</option>
+              <option value="10">10 min</option>
+              <option value="15">15 min</option>
+              <option value="20">20 min</option>
+              <option value="25">25 min</option>
+              <option value="30">30 min</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label>Placement <span class="req">*</span></label>
+            <select id="fPlacement">
+              <option value="">— Select —</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- ASSETS LIST -->
+        <div id="assetsContainer" style="margin-bottom:10px;"></div>
+        <button class="btn-secondary" id="addAssetBtn" onclick="addAsset()" style="width:100%;margin-bottom:10px;font-size:12px;padding:7px;">+ Add Asset (same job, different placement)</button>
 
         <!-- DAMAGE FIELD -->
         <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:6px;padding:10px 14px;display:flex;align-items:center;gap:12px;margin-bottom:10px;">
@@ -772,6 +829,7 @@ textarea { resize: vertical; min-height: 50px; }
             <div class="rs-val" id="revDisplay">$0.00</div>
           </div>
         </div>
+        </div><!-- END regProdFields -->
 
         <div class="row c2">
           <div class="fg">
@@ -834,42 +892,14 @@ textarea { resize: vertical; min-height: 50px; }
         <!-- AM/PM sanity warning -->
         <div id="timeWarning" style="display:none;border-radius:6px;padding:8px 12px;font-size:12px;font-weight:600;margin-bottom:10px;"></div>
 
-        <div class="row c3">
-          <div class="fg">
-            <label>Machine Runtime (min) <span class="req">*</span></label>
-            <input type="number" id="fRuntime" placeholder="Stitch time in minutes" min="1" />
-          </div>
-          <div class="fg">
-            <label>Changeover <span class="req">*</span></label>
-            <select id="fChangeover">
-              <option value="">— Select —</option>
-              <option value="10">10 min</option>
-              <option value="15">15 min</option>
-              <option value="20">20 min</option>
-              <option value="25">25 min</option>
-              <option value="30">30 min</option>
-            </select>
-          </div>
-          <div class="fg">
-            <label>Placement <span class="req">*</span></label>
-            <select id="fPlacement">
-              <option value="">— Select —</option>
-            </select>
-          </div>
-        </div>
-
 
 
       </div>
       <!-- END PRODUCTION FIELDS -->
 
-      <!-- ASSETS LIST -->
-      <div id="assetsContainer" style="margin-bottom:10px;"></div>
-      <button class="btn-secondary" id="addAssetBtn" onclick="addAsset()" style="width:100%;margin-bottom:10px;font-size:12px;padding:7px;">+ Add Asset (same job, different placement)</button>
-
       <!-- Notes — always -->
       <div class="fg" style="margin-top:2px;">
-        <label>Notes</label>
+        <label id="notesLabelText">Notes</label>
         <textarea id="fNotes" placeholder="Optional — missed target reasons, quality notes, anything relevant…"></textarea>
       </div>
 
@@ -1150,8 +1180,19 @@ function addAsset() {
       <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;">Additional Asset</span>
       <button onclick="removeAsset(${id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 5px;border-radius:4px;" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'">✕</button>
     </div>
-    <!-- Row 1: Machine Runtime · Changeover · Placement -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;">
+    <!-- Row 1: Qty · Unit $ -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+      <div class="fg">
+        <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);">Unit Qty *</label>
+        <input type="number" id="aQty_${id}" placeholder="Pcs completed" min="1" style="border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:13px;width:100%;" oninput="calcTotalRevenue()" />
+      </div>
+      <div class="fg">
+        <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);">Unit $ *</label>
+        <input type="number" id="aPrice_${id}" placeholder="0.00" min="0" step="0.01" style="border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:13px;width:100%;" oninput="calcTotalRevenue()" />
+      </div>
+    </div>
+    <!-- Row 2: Machine Runtime · Changeover · Placement -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
       <div class="fg">
         <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);">Machine Runtime (min) *</label>
         <input type="number" id="aRuntime_${id}" placeholder="Stitch time in minutes" min="1" style="border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:13px;width:100%;" />
@@ -1173,17 +1214,6 @@ function addAsset() {
           <option value="">— Select —</option>
           ${placements.map(p => `<option value="${p}">${p}</option>`).join('')}
         </select>
-      </div>
-    </div>
-    <!-- Row 2: Qty · Unit $ -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-      <div class="fg">
-        <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);">Unit Qty *</label>
-        <input type="number" id="aQty_${id}" placeholder="Pcs completed" min="1" style="border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:13px;width:100%;" oninput="calcTotalRevenue()" />
-      </div>
-      <div class="fg">
-        <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);">Unit $ *</label>
-        <input type="number" id="aPrice_${id}" placeholder="0.00" min="0" step="0.01" style="border:1px solid var(--border);border-radius:5px;padding:7px 10px;font-size:13px;width:100%;" oninput="calcTotalRevenue()" />
       </div>
     </div>`;
   container.appendChild(div);
@@ -1233,6 +1263,27 @@ window.onload = async function () {
 // ═══════════════════════════════════════════════
 //  OPERATOR CHANGE
 // ═══════════════════════════════════════════════
+let miscMode = 'prod';  // regular-operator mode: 'prod' or 'misc'
+
+function setMiscMode(mode) {
+  miscMode = mode;
+  document.getElementById('mpProd').classList.toggle('on-blue', mode === 'prod');
+  document.getElementById('mpMisc').classList.toggle('on-teal', mode === 'misc');
+  const jobNumReq = document.getElementById('jobNumReq');
+  const notesLabel = document.querySelector('#regularFields label[for], #miscNotesLabel');
+  const isMisc = mode === 'misc';
+  // Hide the production fields for misc; only Start/Stop + Notes remain
+  document.getElementById('regProdFields').style.display = isMisc ? 'none' : 'block';
+  if (jobNumReq) jobNumReq.style.display = isMisc ? 'none' : 'inline';
+  document.getElementById('fJobNum').placeholder = isMisc ? '(optional for misc)' : 'e.g. 10045';
+  const nl = document.getElementById('notesLabelText');
+  if (nl) nl.innerHTML = isMisc ? 'What were you doing? <span class="req">*</span>' : 'Notes';
+  document.getElementById('fNotes').placeholder = isMisc
+    ? 'e.g. Cleaning machine, packaging orders, assisting another operator…'
+    : 'Optional — missed target reasons, quality notes, anything relevant…';
+  document.getElementById('addBtn').textContent = isMisc ? '+ Add Misc Entry' : '+ Add Job';
+}
+
 function onOperatorChange() {
   const op = v('hOperator');
   const isShay = op === 'Shay Chavez';
@@ -1240,7 +1291,10 @@ function onOperatorChange() {
   document.getElementById('leadSection').style.display    = isShay ? 'block' : 'none';
   document.getElementById('regularFields').style.display  = isShay ? 'none'  : 'block';
   document.getElementById('entryTitle').textContent = isShay ? 'Lead Entry — Shay Chavez' : 'Quick Job Entry';
+  // Misc toggle is for regular operators only — hide it for Shay
+  document.getElementById('mpToggle').style.display = isShay ? 'none' : 'flex';
   if (isShay) { shayAction = ''; clearActionPanels(); }
+  else { setMiscMode('prod'); }
   updateSummary();
 }
 
@@ -1579,11 +1633,46 @@ function addJob() {
   const jobNum  = document.getElementById('fJobNum').value.trim();
   const jobName = document.getElementById('fJobName').value.trim();
   const notes   = document.getElementById('fNotes').value.trim();
+
+  const isShay = operator === 'Shay Chavez';
+
+  // ── MISC PRODUCTION (regular operators) ──
+  if (!isShay && miscMode === 'misc') {
+    if (!v('fSH') || !v('fSM')) { showAlert('Enter Start Time.', 'bad'); return; }
+    if (!v('fEH') || !v('fEM')) { showAlert('Enter Stop Time.', 'bad'); return; }
+    if (!notes) { err('fNotes'); showAlert('Describe what you were doing.', 'bad'); return; }
+    ok('fNotes');
+    const mStart = toMins(v('fSH'), v('fSM'), v('fSAP'));
+    const mStop  = toMins(v('fEH'), v('fEM'), v('fEAP'));
+    if (mStop <= mStart) { showAlert('Stop time must be after start time.', 'bad'); return; }
+    const mGross = mStop - mStart;
+    const mBreak = getJobBreakDeduction(mStart, mStop);
+    const miscJob = {
+      id: Date.now(),
+      date: new Date().toISOString().slice(0,10),
+      operator, machine,
+      jobNum: jobNum || '—', jobName: jobName || 'Misc Production',
+      notes, isShay: false, action: 'misc',
+      startTime: fmt12(mStart), stopTime: fmt12(mStop),
+      startMins: mStart, stopMins: mStop,
+      elapsed: mGross, deduct: mBreak, netElapsed: Math.max(0, mGross - mBreak),
+      qty: 0, unitPrice: 0, revenue: 0, damages: 0
+    };
+    jobs.push(miscJob);
+    sessionStorage.setItem('emb_staging', JSON.stringify(jobs));
+    resetForm();
+    renderTable();
+    updateSummary();
+    renderTimeline();
+    showAlert('✅ Misc entry added to log.', 'ok');
+    return;
+  }
+
+  // Production/lead require job# + name
   if (!jobNum)  { err('fJobNum');  showAlert('Job Number is required.', 'bad'); return; }
   if (!jobName) { err('fJobName'); showAlert('Job Name is required.', 'bad'); return; }
   ok('fJobNum'); ok('fJobName');
 
-  const isShay = operator === 'Shay Chavez';
   let job = {
     id: Date.now(),
     date: new Date().toISOString().slice(0,10),
@@ -1794,6 +1883,7 @@ function renderTable() {
       <td>${rev}</td>
       <td style="text-align:right;">
         ${statusBadge}
+        ${!j.saved ? `<button class="edit-btn" onclick="editJob(${j.id})" title="Edit">✎</button>` : ''}
         <button class="del-btn" onclick="removeJob(${j.id})" title="Remove">✕</button>
       </td>
     </tr>`;
@@ -1828,6 +1918,75 @@ function removeJob(id) {
   renderTable();
   updateSummary();
   renderTimeline();
+}
+
+// Pull a staged job back into the form for editing, then remove it from the list
+function editJob(id) {
+  const j = jobs.find(x => x.id === id);
+  if (!j) return;
+  if (j.saved) { showAlert('This job is already saved and cannot be edited here.', 'bad'); return; }
+
+  // Make sure the right operator is selected so the correct UI shows
+  const opSel = document.getElementById('hOperator');
+  if (opSel && j.operator) { opSel.value = j.operator; onOperatorChange(); }
+  const macSel = document.getElementById('hMachine');
+  if (macSel && j.machine) macSel.value = j.machine;
+
+  // Common fields
+  document.getElementById('fJobNum').value  = (j.jobNum && j.jobNum !== '—') ? j.jobNum : '';
+  document.getElementById('fJobName').value = (j.jobName && j.jobName !== 'Misc Production') ? j.jobName : '';
+  document.getElementById('fNotes').value   = j.notes || '';
+
+  const setPicker = (which, mins) => {
+    if (mins === undefined || mins === null || mins === '') return;
+    let h = Math.floor(mins/60), m = mins%60, ap = 'AM';
+    if (h >= 12) { ap='PM'; if (h>12) h-=12; }
+    if (h === 0) h = 12;
+    const hh = String(h), mm = String(m).padStart(2,'0');
+    tpState[which] = { h:hh, m:mm, ap };
+    updateTimeDisplay(which);
+  };
+
+  if (j.action === 'misc') {
+    setMiscMode('misc');
+    setPicker('start', j.startMins);
+    setPicker('stop',  j.stopMins);
+  } else if (!j.isShay || j.action === 'prod' || j.action === 'gprod') {
+    // Regular / general production
+    if (!j.isShay) setMiscMode('prod');
+    setPicker('start', j.startMins);
+    setPicker('stop',  j.stopMins);
+    if (document.getElementById('fQty'))       document.getElementById('fQty').value = j.qty || '';
+    if (document.getElementById('fUnitPrice')) document.getElementById('fUnitPrice').value = j.unitPrice || '';
+    if (document.getElementById('fRuntime'))   document.getElementById('fRuntime').value = j.runtime || '';
+    if (document.getElementById('fChangeover'))document.getElementById('fChangeover').value = j.changeover || '';
+    if (document.getElementById('fPlacement')) document.getElementById('fPlacement').value = j.placement || '';
+    calcTotalRevenue();
+  } else if (j.isShay) {
+    // Lead actions — set the action then restore times + that action's fields
+    if (typeof setAction === 'function') setAction(j.action);
+    setPicker('leadStart', j.startMins);
+    setPicker('leadStop',  j.stopMins);
+    if (j.action === 'sample') {
+      if (document.getElementById('fSampleType'))  document.getElementById('fSampleType').value = j.sampleType || '';
+      if (document.getElementById('fIntendedQty')) document.getElementById('fIntendedQty').value = j.intendedQty || '';
+    } else if (j.action === 'co') {
+      if (document.getElementById('fCoOp'))  document.getElementById('fCoOp').value = j.coOp || '';
+      if (document.getElementById('fCoDur')) document.getElementById('fCoDur').value = j.coDur || '';
+    } else if (j.action === 'edit') {
+      if (document.getElementById('fAssetCode')) document.getElementById('fAssetCode').value = j.assetCode || '';
+      if (document.getElementById('fEditDur'))   document.getElementById('fEditDur').value = j.editDur || '';
+    }
+  }
+
+  // Remove from the staged list so re-saving re-adds the edited version
+  jobs = jobs.filter(x => x.id !== id);
+  sessionStorage.setItem('emb_staging', JSON.stringify(jobs));
+  renderTable();
+  updateSummary();
+  renderTimeline();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  showAlert('Job loaded for editing — make changes and Add it again.', 'ok');
 }
 
 // ═══════════════════════════════════════════════
@@ -1901,7 +2060,7 @@ function updateSummary() {
     return;
   }
 
-  const prodJobs = allToday.filter(j => j.action === 'prod' || !j.isShay);
+  const prodJobs = allToday.filter(j => (j.action === 'prod' || !j.isShay) && j.action !== 'misc');
   const totalPcs = prodJobs.reduce((a,j) => a + (j.qty || 0), 0);
   const totalRev = prodJobs.reduce((a,j) => a + (j.revenue || 0), 0);
   const totalMin = prodJobs.reduce((a,j) => a + (j.netElapsed || j.elapsed || 0), 0);
@@ -1923,7 +2082,7 @@ function updateSummary() {
   if (sDmgRateEl) sDmgRateEl.textContent = totalPcs > 0 ? ((totalDmg/totalPcs)*100).toFixed(2)+'% rate' : '';
 
   // Weekly metrics
-  const wProd    = weekJobs.filter(j => j.action === 'prod' || !j.isShay);
+  const wProd    = weekJobs.filter(j => (j.action === 'prod' || !j.isShay) && j.action !== 'misc');
   const wPcs     = wProd.reduce((a,j) => a + (parseInt(j.qty)||0), 0);
   const wRev     = wProd.reduce((a,j) => a + (parseFloat(j.revenue)||0), 0);
   const wMin     = wProd.reduce((a,j) => a + (parseInt(j.netElapsed||j.elapsed)||0), 0);
@@ -2123,7 +2282,7 @@ function renderTimeline() {
   const savedToday = JSON.parse(localStorage.getItem('emb_jobs_' + today) || '[]');
   const allToday = [...savedToday, ...jobs.filter(j => !j.saved)];
   // Include production AND lead actions (sample/co/edit/gprod) that have times
-  const TIMED_ACTIONS = ['prod','gprod','sample','co','edit'];
+  const TIMED_ACTIONS = ['prod','gprod','sample','co','edit','misc'];
   const prodJobs = allToday.filter(j => (TIMED_ACTIONS.includes(j.action) || !j.isShay) && j.startTime && j.stopTime);
 
   const el = document.getElementById('tlContent');
@@ -2158,7 +2317,8 @@ function renderTimeline() {
     gprod:  { color:'#2563eb', name:'Production' },
     sample: { color:'#0d9488', name:'Sample' },       // teal
     co:     { color:'#7c3aed', name:'CO Assist' },     // purple
-    edit:   { color:'#4d7c5f', name:'File Edit' }      // slate-green
+    edit:   { color:'#4d7c5f', name:'File Edit' },     // slate-green
+    misc:   { color:'#0d9488', name:'Misc' }          // teal
   };
 
 
@@ -2194,17 +2354,17 @@ function renderTimeline() {
 
     // gap before changeover/action
     if (segStart > cursor) {
-      segs += `<div class="tl-seg gap-seg" style="width:${wpct(segStart-cursor)}%;" title="Gap - ${fmtMin(segStart-cursor)}"></div>`;
+      segs += `<div class="tl-seg gap-seg" style="width:${wpct(segStart-cursor)}%;"><div class="tl-tooltip">Gap<div class="tt-sub">${fmt12(cursor)} → ${fmt12(segStart)} · ${fmtMin(segStart-cursor)}</div></div></div>`;
       cursor = segStart;
     }
     // changeover block (production only)
     if (coMins > 0 && coStart >= axisStart) {
-      segs += `<div class="tl-seg" style="width:${wpct(coMins)}%;background:#1a2e4a;" title="Changeover - Job ${blk.label} - ${coMins}min"><span style="font-size:9px;color:rgba(255,255,255,0.7);">CO</span></div>`;
+      segs += `<div class="tl-seg" style="width:${wpct(coMins)}%;background:#1a2e4a;"><span style="font-size:9px;color:rgba(255,255,255,0.7);">CO</span><div class="tl-tooltip">Changeover · Job ${blk.label}<div class="tt-sub">${fmt12(coStart)} → ${fmt12(coStart+coMins)} · ${fmtMin(coMins)}</div></div></div>`;
       cursor += coMins;
     }
     // action block, colored by type
     const isLast = i === blocks.length - 1;
-    segs += `<div class="tl-seg" style="width:${wpct(blk.end-blk.start)}%;background:${style.color};${!isLast ? 'border-right:3px solid #0f172a;' : ''}" title="${style.name} ${blk.label}: ${fmt12(blk.start)}-${fmt12(blk.end)} - ${fmtMin(blk.end-blk.start)}"><span>${blk.label}</span></div>`;
+    segs += `<div class="tl-seg" style="width:${wpct(blk.end-blk.start)}%;background:${style.color};${!isLast ? 'border-right:3px solid #0f172a;' : ''}"><span>${blk.label}</span><div class="tl-tooltip">${style.name} ${blk.label}<div class="tt-sub">${fmt12(blk.start)} → ${fmt12(blk.end)} · ${fmtMin(blk.end-blk.start)}</div></div></div>`;
     cursor = blk.end;
   });
 
@@ -2215,7 +2375,7 @@ function renderTimeline() {
   }
   // rest of shift (hatched)
   if (axisEnd > cursor) {
-    segs += `<div class="tl-seg future-seg" style="width:${wpct(axisEnd-cursor)}%;" title="Rest of shift"></div>`;
+    segs += `<div class="tl-seg future-seg" style="width:${wpct(axisEnd-cursor)}%;"><div class="tl-tooltip">Rest of shift<div class="tt-sub">${fmt12(cursor)} → ${fmt12(axisEnd)}</div></div></div>`;
   }
 
   // ── TOP LAYER: breaks overlaid absolutely by clock position ──
@@ -2225,14 +2385,14 @@ function renderTimeline() {
     const width = Math.max(((b.endMins - b.startMins) / span * 100), 1.2);
     const bColor = b.color || '#f59e0b';
     const overNote = (b.over && b.over > 3) ? ` (${b.over}min over)` : '';
-    breakOverlay += `<div class="tl-break-overlay" style="left:${left.toFixed(3)}%;width:${width.toFixed(3)}%;background:${bColor};" title="${b.label} - ${b.startTime} to ${b.stopTime}${overNote}"><span>B</span></div>`;
+    breakOverlay += `<div class="tl-break-overlay" style="left:${left.toFixed(3)}%;width:${width.toFixed(3)}%;background:${bColor};"><span>B</span><div class="tl-tooltip">${b.label}<div class="tt-sub">${b.startTime} → ${b.stopTime}${overNote}</div></div></div>`;
   });
   // active (ongoing) break overlay
   if (activeBrk) {
     const left = ((activeBrk.startMins - axisStart) / span * 100);
     const width = Math.max(((clampedNow - activeBrk.startMins) / span * 100), 1.2);
     const elapsed = Math.round((Date.now() - activeBrk.startedAt) / 60000);
-    breakOverlay += `<div class="tl-break-overlay" style="left:${left.toFixed(3)}%;width:${width.toFixed(3)}%;background:#f59e0b;animation:pulse 1.5s infinite;" title="On break now - started ${activeBrk.startTime} - ${elapsed}min"><span>B ${elapsed}m</span></div>`;
+    breakOverlay += `<div class="tl-break-overlay" style="left:${left.toFixed(3)}%;width:${width.toFixed(3)}%;background:#f59e0b;animation:pulse 1.5s infinite;"><span>B ${elapsed}m</span><div class="tl-tooltip">On break now<div class="tt-sub">Started ${activeBrk.startTime} · ${elapsed}min</div></div></div>`;
   }
 
   // Axis labels
